@@ -1,4 +1,4 @@
-IMAGE_ID ?= kjarosh/latex
+IMAGE_ID ?= scott-weeden/latex
 VERSION ?= latest
 
 TL_MIRROR ?= https://texlive.info/CTAN/systems/texlive/tlnet
