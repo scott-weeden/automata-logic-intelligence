@@ -1,16 +1,16 @@
 # LaTeX in Docker
 
-[![GitHub license](https://img.shields.io/github/license/kjarosh/latex-docker)](https://github.com/kjarosh/latex-docker/blob/main/LICENSE)
-[![GitHub build status](https://img.shields.io/github/actions/workflow/status/kjarosh/latex-docker/docker.yaml?branch=main)](https://github.com/kjarosh/latex-docker/actions)
-[![GitHub release](https://img.shields.io/github/v/release/kjarosh/latex-docker)](https://github.com/kjarosh/latex-docker/releases)
-[![DockerHub](https://img.shields.io/badge/docker.io-kjarosh%2Flatex-blue)](https://hub.docker.com/r/kjarosh/latex)
-[![GitHub Container Registry](https://img.shields.io/badge/ghcr.io-kjarosh%2Flatex-blue)](https://github.com/users/kjarosh/packages/container/package/latex)
+[![GitHub license](https://img.shields.io/github/license/scott-weeden/latex-docker)](https://github.com/scott-weeden/latex-docker/blob/main/LICENSE)
+[![GitHub build status](https://img.shields.io/github/actions/workflow/status/scott-weeden/latex-docker/docker.yaml?branch=main)](https://github.com/scott-weeden/latex-docker/actions)
+[![GitHub release](https://img.shields.io/github/v/release/scott-weeden/latex-docker)](https://github.com/scott-weeden/latex-docker/releases)
+[![DockerHub](https://img.shields.io/badge/docker.io-scott-weeden%2Flatex-blue)](https://hub.docker.com/r/scott-weeden/latex)
+[![GitHub Container Registry](https://img.shields.io/badge/ghcr.io-scott-weeden%2Flatex-blue)](https://github.com/users/scott-weeden/packages/container/package/latex)
 
-[![Docker Image Size (minimal)](https://img.shields.io/docker/image-size/kjarosh/latex/latest-minimal?label=minimal)](https://hub.docker.com/r/kjarosh/latex)
-[![Docker Image Size (basic)](https://img.shields.io/docker/image-size/kjarosh/latex/latest-basic?label=basic)](https://hub.docker.com/r/kjarosh/latex)
-[![Docker Image Size (small)](https://img.shields.io/docker/image-size/kjarosh/latex/latest-small?label=small)](https://hub.docker.com/r/kjarosh/latex)
-[![Docker Image Size (medium)](https://img.shields.io/docker/image-size/kjarosh/latex/latest-medium?label=medium)](https://hub.docker.com/r/kjarosh/latex)
-[![Docker Image Size (full)](https://img.shields.io/docker/image-size/kjarosh/latex/latest-full?label=full)](https://hub.docker.com/r/kjarosh/latex)
+[![Docker Image Size (minimal)](https://img.shields.io/docker/image-size/scott-weeden/latex/latest-minimal?label=minimal)](https://hub.docker.com/r/scott-weeden/latex)
+[![Docker Image Size (basic)](https://img.shields.io/docker/image-size/scott-weeden/latex/latest-basic?label=basic)](https://hub.docker.com/r/scott-weeden/latex)
+[![Docker Image Size (small)](https://img.shields.io/docker/image-size/scott-weeden/latex/latest-small?label=small)](https://hub.docker.com/r/scott-weeden/latex)
+[![Docker Image Size (medium)](https://img.shields.io/docker/image-size/scott-weeden/latex/latest-medium?label=medium)](https://hub.docker.com/r/scott-weeden/latex)
+[![Docker Image Size (full)](https://img.shields.io/docker/image-size/scott-weeden/latex/latest-full?label=full)](https://hub.docker.com/r/scott-weeden/latex)
 
 This repository defines a set of images which may be used
 to run LaTeX in a container, for example in CI/CD.
@@ -24,11 +24,11 @@ may be installed using `apk`.
 
 | Scheme  | Image                          | Size    |
 |---------|--------------------------------|---------|
-| minimal | `kjarosh/latex:2025.1-minimal` | ~40 MB  |
-| basic   | `kjarosh/latex:2025.1-basic`   | ~90 MB  |
-| small   | `kjarosh/latex:2025.1-small`   | ~180 MB |
-| medium  | `kjarosh/latex:2025.1-medium`  | ~500 MB |
-| full    | `kjarosh/latex:2025.1`         | ~2 GB   |
+| minimal | `scott-weeden/latex:2025.1-minimal` | ~40 MB  |
+| basic   | `scott-weeden/latex:2025.1-basic`   | ~90 MB  |
+| small   | `scott-weeden/latex:2025.1-small`   | ~180 MB |
+| medium  | `scott-weeden/latex:2025.1-medium`  | ~500 MB |
+| full    | `scott-weeden/latex:2025.1`         | ~2 GB   |
 
 The images are made in such a way that they reuse layers.
 For example `full` will add a layer to `medium` with packages that are
@@ -43,7 +43,7 @@ Assuming you want to quickly compile a file named `main.tex` in the current
 directory to a PDF and place the output in `./out`:
 
 ```shell
-docker run --rm -v "$PWD:/src" -w /src -u "$UID:$GID" kjarosh/latex:2025.1 latexmk -pdf -outdir=out -auxdir=out/aux main.tex
+docker run --rm -v "$PWD:/src" -w /src -u "$UID:$GID" scott-weeden/latex:2025.1 latexmk -pdf -outdir=out -auxdir=out/aux main.tex
 ```
 
 If you want to work on your LaTeX project and see your changes live,
@@ -89,7 +89,7 @@ set of packages for the given TeX Live version at the time of release.
 | 2019             | `2019.2`              |
 | 2018             | `2018.2`              |
 
-All stable versions are available on the [releases page](https://github.com/kjarosh/latex-docker/releases).
+All stable versions are available on the [releases page](https://github.com/scott-weeden/latex-docker/releases).
 
 ### Development Versions
 
@@ -129,7 +129,7 @@ on: [ push ]
 jobs:
   container:
     runs-on: ubuntu-latest
-    container: kjarosh/latex:2024.4
+    container: scott-weeden/latex:2024.4
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -151,7 +151,7 @@ Example using `latexmk`:
 ```yaml
 build:
   stage: build
-  image: kjarosh/latex:2024.4
+  image: scott-weeden/latex:2024.4
   script:
     - latexmk -pdf -output-directory=out main.tex
   artifacts:
