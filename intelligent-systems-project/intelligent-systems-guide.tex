@@ -1,0 +1,643 @@
+\documentclass[11pt,letterpaper]{article}
+\usepackage[utf8]{inputenc}
+\usepackage[margin=1in]{geometry}
+\usepackage{amsmath,amsthm,amssymb,amsfonts}
+\usepackage{algorithm}
+\usepackage{algpseudocode}
+\usepackage{graphicx}
+\usepackage{tikz}
+\usepackage{listings}
+\usepackage{hyperref}
+\usepackage{tcolorbox}
+\usepackage{enumitem}
+\usepackage{multirow}
+\usepackage{array}
+
+% Define theorem environments
+\newtheorem{definition}{Definition}[section]
+\newtheorem{theorem}{Theorem}[section]
+\newtheorem{example}{Example}[section]
+
+% Create colored boxes for important concepts
+\newtcolorbox{important}{colback=red!5!white,colframe=red!75!black,title=Important}
+\newtcolorbox{concept}{colback=blue!5!white,colframe=blue!75!black}
+
+\title{\textbf{CS 5368: Intelligent Systems}\\
+\Large Comprehensive Study Guide for Midterm Exam\\
+\large Texas Tech University - Fall 2025}
+\author{Prepared for October 17, 2025 Exam}
+\date{Covers Weeks 1-9}
+
+\begin{document}
+\maketitle
+\tableofcontents
+\newpage
+
+%================================================================================
+\section{Week 1-2: Introduction and Search Problem Formulation}
+%================================================================================
+
+\subsection{What is Artificial Intelligence?}
+
+\begin{definition}[Intelligent Systems]
+Advanced machines that perceive and respond to the world around them, employing artificial intelligence as an underlying technology with the ultimate goal to mimic human intelligence.
+\end{definition}
+
+\begin{concept}
+\textbf{AI Hierarchy:}
+\begin{itemize}
+    \item \textbf{Deep Learning} $\subset$ \textbf{Machine Learning} $\subset$ \textbf{Artificial Intelligence}
+    \item AI encompasses: expert systems, recommendation systems, search algorithms, and more
+\end{itemize}
+\end{concept}
+
+\subsection{Problem Formulation for Search}
+
+\begin{definition}[Search Problem]
+A search problem consists of:
+\begin{enumerate}
+    \item \textbf{Initial State}: Starting configuration $s_0$
+    \item \textbf{Actions}: Set $ACTIONS(s)$ of actions available in state $s$
+    \item \textbf{Transition Model}: $RESULT(s, a)$ gives the state resulting from action $a$ in state $s$
+    \item \textbf{Goal Test}: $GOAL\_TEST(s)$ determines if $s$ is a goal state
+    \item \textbf{Path Cost}: $g(n)$ = cost of path from initial state to node $n$
+\end{enumerate}
+\end{definition}
+
+\begin{important}
+The \textbf{state space} is the set of all states reachable from the initial state. A \textbf{solution} is a sequence of actions leading from the initial state to a goal state. An \textbf{optimal solution} has the lowest path cost among all solutions.
+\end{important}
+
+%================================================================================
+\section{Week 3: Uninformed Search Strategies}
+%================================================================================
+
+\subsection{General Tree Search Algorithm}
+
+\begin{algorithm}
+\caption{Tree-Search}
+\begin{algorithmic}[1]
+\Function{Tree-Search}{problem}
+    \State $frontier \gets$ a queue with initial state of problem
+    \While{frontier is not empty}
+        \State $node \gets$ remove from frontier
+        \If{$GOAL\_TEST(node.STATE)$}
+            \State \Return $SOLUTION(node)$
+        \EndIf
+        \State expand $node$ and add resulting nodes to frontier
+    \EndWhile
+    \State \Return failure
+\EndFunction
+\end{algorithmic}
+\end{algorithm}
+
+\subsection{Search Strategy Comparison}
+
+\begin{table}[h]
+\centering
+\begin{tabular}{|l|c|c|c|c|}
+\hline
+\textbf{Algorithm} & \textbf{Complete?} & \textbf{Optimal?} & \textbf{Time} & \textbf{Space} \\
+\hline
+BFS & Yes$^a$ & Yes$^c$ & $O(b^d)$ & $O(b^d)$ \\
+\hline
+DFS & No & No & $O(b^m)$ & $O(bm)$ \\
+\hline
+Uniform-Cost & Yes$^{a,b}$ & Yes & $O(b^{1+\lfloor C^*/\epsilon \rfloor})$ & $O(b^{1+\lfloor C^*/\epsilon \rfloor})$ \\
+\hline
+Depth-Limited & No & No & $O(b^l)$ & $O(bl)$ \\
+\hline
+Iterative Deepening & Yes$^a$ & Yes$^c$ & $O(b^d)$ & $O(bd)$ \\
+\hline
+\end{tabular}
+\caption{Comparison of uninformed search strategies. $b$: branching factor, $d$: depth of shallowest solution, $m$: maximum depth, $l$: depth limit}
+\end{table}
+
+\textit{Notes: $^a$ complete if $b$ is finite; $^b$ complete if step costs $\geq \epsilon > 0$; $^c$ optimal if step costs are identical}
+
+\subsection{Breadth-First Search (BFS)}
+
+\begin{concept}
+\textbf{Key Properties:}
+\begin{itemize}
+    \item Uses FIFO queue for frontier
+    \item Expands shallowest nodes first
+    \item Guarantees shortest path (in terms of number of steps)
+    \item Space complexity is main drawback
+\end{itemize}
+\end{concept}
+
+\subsection{Depth-First Search (DFS)}
+
+\begin{concept}
+\textbf{Key Properties:}
+\begin{itemize}
+    \item Uses LIFO stack (or recursion) for frontier
+    \item Expands deepest nodes first
+    \item Space-efficient: $O(bm)$ vs BFS's $O(b^d)$
+    \item Can get stuck in infinite paths
+    \item Not optimal, not complete in infinite spaces
+\end{itemize}
+\end{concept}
+
+\subsection{Uniform-Cost Search (UCS)}
+
+\begin{algorithm}
+\caption{Uniform-Cost Search}
+\begin{algorithmic}[1]
+\Function{UCS}{problem}
+    \State $frontier \gets$ priority queue ordered by path cost $g(n)$
+    \State $frontier.INSERT(MAKE\_NODE(INITIAL\_STATE), 0)$
+    \State $explored \gets \emptyset$
+    \While{frontier not empty}
+        \State $node \gets frontier.POP()$ \Comment{Lowest cost node}
+        \If{$GOAL\_TEST(node.STATE)$}
+            \State \Return $SOLUTION(node)$
+        \EndIf
+        \State $explored.ADD(node.STATE)$
+        \For{each action in $ACTIONS(node.STATE)$}
+            \State $child \gets CHILD\_NODE(node, action)$
+            \If{$child.STATE \notin explored$ and $child.STATE \notin frontier$}
+                \State $frontier.INSERT(child, g(child))$
+            \ElsIf{$child.STATE \in frontier$ with higher cost}
+                \State replace frontier node with $child$
+            \EndIf
+        \EndFor
+    \EndWhile
+    \State \Return failure
+\EndFunction
+\end{algorithmic}
+\end{algorithm}
+
+%================================================================================
+\section{Week 3-4: Informed (Heuristic) Search}
+%================================================================================
+
+\subsection{Heuristic Functions}
+
+\begin{definition}[Heuristic Function]
+A heuristic function $h(n)$ estimates the cost from node $n$ to the nearest goal. Properties:
+\begin{itemize}
+    \item \textbf{Admissible}: $h(n) \leq h^*(n)$ where $h^*(n)$ is true cost to goal
+    \item \textbf{Consistent}: $h(n) \leq c(n,a,n') + h(n')$ for every successor $n'$
+    \item Consistency implies admissibility
+\end{itemize}
+\end{definition}
+
+\subsection{A* Search}
+
+\begin{important}
+A* uses evaluation function $f(n) = g(n) + h(n)$ where:
+\begin{itemize}
+    \item $g(n)$ = cost to reach $n$ from start
+    \item $h(n)$ = estimated cost from $n$ to goal
+    \item $f(n)$ = estimated total path cost through $n$
+\end{itemize}
+A* is optimal if $h(n)$ is admissible (tree search) or consistent (graph search).
+\end{important}
+
+\subsection{Greedy Best-First Search}
+
+\begin{concept}
+Expands node with lowest $h(n)$ value. Fast but not optimal or complete.
+\begin{itemize}
+    \item Evaluation function: $f(n) = h(n)$
+    \item Can be misled by heuristic
+    \item Time: $O(b^m)$ worst case
+    \item Space: $O(b^m)$
+\end{itemize}
+\end{concept}
+
+%================================================================================
+\section{Week 4-5: Adversarial Search and Game Playing}
+%================================================================================
+
+\subsection{Game Tree Representation}
+
+\begin{definition}[Game Components]
+\begin{itemize}
+    \item \textbf{States}: Game configurations
+    \item \textbf{Initial State}: Starting position
+    \item \textbf{Players}: $PLAYER(s)$ returns whose turn it is
+    \item \textbf{Actions}: $ACTIONS(s)$ legal moves in state $s$
+    \item \textbf{Result}: $RESULT(s,a)$ state after move $a$ in state $s$
+    \item \textbf{Terminal Test}: $TERMINAL(s)$ true if game over
+    \item \textbf{Utility}: $UTILITY(s,p)$ value of terminal state $s$ for player $p$
+\end{itemize}
+\end{definition}
+
+\subsection{Minimax Algorithm}
+
+\begin{algorithm}
+\caption{Minimax Decision}
+\begin{algorithmic}[1]
+\Function{Minimax}{state}
+    \If{$TERMINAL(state)$}
+        \State \Return $UTILITY(state)$
+    \EndIf
+    \If{$PLAYER(state) = MAX$}
+        \State $v \gets -\infty$
+        \For{each action in $ACTIONS(state)$}
+            \State $v \gets \max(v, \text{MINIMAX}(RESULT(state, action)))$
+        \EndFor
+    \Else
+        \State $v \gets +\infty$
+        \For{each action in $ACTIONS(state)$}
+            \State $v \gets \min(v, \text{MINIMAX}(RESULT(state, action)))$
+        \EndFor
+    \EndIf
+    \State \Return $v$
+\EndFunction
+\end{algorithmic}
+\end{algorithm}
+
+\begin{important}
+\textbf{Minimax Properties:}
+\begin{itemize}
+    \item Complete: Yes (for finite games)
+    \item Optimal: Yes (against optimal opponent)
+    \item Time complexity: $O(b^m)$
+    \item Space complexity: $O(bm)$ (depth-first)
+\end{itemize}
+\end{important}
+
+\subsection{Alpha-Beta Pruning}
+
+\begin{concept}
+Alpha-Beta pruning eliminates branches that cannot affect the final decision:
+\begin{itemize}
+    \item $\alpha$: best (highest) value MAX can guarantee
+    \item $\beta$: best (lowest) value MIN can guarantee
+    \item Prune when $v \geq \beta$ at MAX node or $v \leq \alpha$ at MIN node
+\end{itemize}
+\end{concept}
+
+\begin{algorithm}
+\caption{Alpha-Beta Search}
+\begin{algorithmic}[1]
+\Function{AlphaBeta}{state, $\alpha$, $\beta$, player}
+    \If{$TERMINAL(state)$}
+        \State \Return $UTILITY(state)$
+    \EndIf
+    \If{$player = MAX$}
+        \State $v \gets -\infty$
+        \For{each action in $ACTIONS(state)$}
+            \State $v \gets \max(v, \text{AlphaBeta}(RESULT(state, a), \alpha, \beta, MIN))$
+            \If{$v \geq \beta$}
+                \State \Return $v$ \Comment{Beta cutoff}
+            \EndIf
+            \State $\alpha \gets \max(\alpha, v)$
+        \EndFor
+    \Else
+        \State $v \gets +\infty$
+        \For{each action in $ACTIONS(state)$}
+            \State $v \gets \min(v, \text{AlphaBeta}(RESULT(state, a), \alpha, \beta, MAX))$
+            \If{$v \leq \alpha$}
+                \State \Return $v$ \Comment{Alpha cutoff}
+            \EndIf
+            \State $\beta \gets \min(\beta, v)$
+        \EndFor
+    \EndIf
+    \State \Return $v$
+\EndFunction
+\end{algorithmic}
+\end{algorithm}
+
+\subsection{Evaluation Functions}
+
+\begin{definition}[Evaluation Function]
+For depth-limited search, evaluation function estimates utility of non-terminal states:
+\begin{itemize}
+    \item Should order states similarly to true utility
+    \item Must be fast to compute
+    \item Often weighted linear combination of features
+    \item Example: Chess evaluation = material + positional advantages
+\end{itemize}
+\end{definition}
+
+%================================================================================
+\section{Week 6-7: Markov Decision Processes (MDPs)}
+%================================================================================
+
+\subsection{MDP Definition}
+
+\begin{definition}[Markov Decision Process]
+An MDP is defined by:
+\begin{itemize}
+    \item \textbf{States} $S$: set of states
+    \item \textbf{Actions} $A(s)$: set of actions in state $s$
+    \item \textbf{Transition Model} $P(s'|s,a)$: probability of reaching $s'$ from $s$ via action $a$
+    \item \textbf{Reward Function} $R(s)$: immediate reward for being in state $s$
+    \item \textbf{Discount Factor} $\gamma \in [0,1]$: preference for immediate rewards
+    \item \textbf{Initial State} $s_0$
+\end{itemize}
+\end{definition}
+
+\begin{important}
+\textbf{Markov Property}: The future depends only on the current state, not on the history:
+$$P(S_{t+1}|S_t, A_t, S_{t-1}, A_{t-1}, ..., S_0) = P(S_{t+1}|S_t, A_t)$$
+\end{important}
+
+\subsection{Policies and Utilities}
+
+\begin{definition}[Policy]
+A policy $\pi$ is a mapping from states to actions: $\pi: S \rightarrow A$
+\begin{itemize}
+    \item Deterministic policy: $\pi(s)$ returns single action
+    \item Stochastic policy: $\pi(a|s)$ gives probability of action $a$ in state $s$
+    \item Optimal policy $\pi^*$ maximizes expected utility from every state
+\end{itemize}
+\end{definition}
+
+\begin{definition}[Utility of States]
+The utility (value) of a state $s$ under policy $\pi$ is:
+$$U^\pi(s) = E\left[\sum_{t=0}^{\infty} \gamma^t R(S_t) \Big| S_0 = s, \pi\right]$$
+\end{definition}
+
+\subsection{Bellman Equations}
+
+\begin{theorem}[Bellman Equation]
+The utility of a state satisfies:
+$$U(s) = R(s) + \gamma \max_{a \in A(s)} \sum_{s'} P(s'|s,a) U(s')$$
+\end{theorem}
+
+\begin{theorem}[Bellman Equation for Policy]
+For a fixed policy $\pi$:
+$$U^\pi(s) = R(s) + \gamma \sum_{s'} P(s'|s,\pi(s)) U^\pi(s')$$
+\end{theorem}
+
+\subsection{Value Iteration}
+
+\begin{algorithm}
+\caption{Value Iteration}
+\begin{algorithmic}[1]
+\Function{ValueIteration}{mdp, $\epsilon$}
+    \State $U \gets$ arbitrary initial utilities
+    \State $\delta \gets 0$
+    \Repeat
+        \State $U' \gets U$; $\delta \gets 0$
+        \For{each state $s$ in $S$}
+            \State $U[s] \gets R(s) + \gamma \max_{a} \sum_{s'} P(s'|s,a) U'[s']$
+            \State $\delta \gets \max(\delta, |U[s] - U'[s]|)$
+        \EndFor
+    \Until{$\delta < \epsilon(1-\gamma)/\gamma$}
+    \State \Return $U$
+\EndFunction
+\end{algorithmic}
+\end{algorithm}
+
+\subsection{Policy Iteration}
+
+\begin{algorithm}
+\caption{Policy Iteration}
+\begin{algorithmic}[1]
+\Function{PolicyIteration}{mdp}
+    \State $U \gets$ arbitrary utilities
+    \State $\pi \gets$ arbitrary policy
+    \Repeat
+        \State $U \gets$ PolicyEvaluation($\pi$, $U$, mdp)
+        \State $unchanged \gets true$
+        \For{each state $s$ in $S$}
+            \State $a^* \gets \arg\max_a \sum_{s'} P(s'|s,a) U[s']$
+            \If{$a^* \neq \pi[s]$}
+                \State $\pi[s] \gets a^*$
+                \State $unchanged \gets false$
+            \EndIf
+        \EndFor
+    \Until{$unchanged$}
+    \State \Return $\pi$
+\EndFunction
+\end{algorithmic}
+\end{algorithm}
+
+%================================================================================
+\section{Week 7-8: Reinforcement Learning}
+%================================================================================
+
+\subsection{Reinforcement Learning Framework}
+
+\begin{definition}[Reinforcement Learning]
+Learning optimal behavior through interaction with environment:
+\begin{itemize}
+    \item Agent takes action $a_t$ in state $s_t$
+    \item Environment returns reward $r_t$ and next state $s_{t+1}$
+    \item Goal: learn policy $\pi$ that maximizes expected cumulative reward
+    \item No explicit model of environment initially
+\end{itemize}
+\end{definition}
+
+\subsection{Passive vs Active Learning}
+
+\begin{concept}
+\textbf{Passive Learning:}
+\begin{itemize}
+    \item Fixed policy $\pi$
+    \item Learn utility values $U^\pi(s)$
+    \item Methods: Direct Utility Estimation, Adaptive Dynamic Programming, TD Learning
+\end{itemize}
+
+\textbf{Active Learning:}
+\begin{itemize}
+    \item Learn optimal policy $\pi^*$
+    \item Balance exploration vs exploitation
+    \item Methods: Q-Learning, SARSA
+\end{itemize}
+\end{concept}
+
+\subsection{Temporal Difference Learning}
+
+\begin{algorithm}
+\caption{TD Learning}
+\begin{algorithmic}[1]
+\Function{TD-Learning}{$\pi$}
+    \State Initialize $U[s]$ arbitrarily for all $s$
+    \State Observe current state $s$
+    \Repeat
+        \State Execute action $\pi(s)$
+        \State Observe reward $r$ and new state $s'$
+        \State $U[s] \gets U[s] + \alpha(r + \gamma U[s'] - U[s])$
+        \State $s \gets s'$
+    \Until{termination}
+\EndFunction
+\end{algorithmic}
+\end{algorithm}
+
+\subsection{Q-Learning}
+
+\begin{definition}[Q-Function]
+Q-value $Q(s,a)$ represents expected utility of taking action $a$ in state $s$:
+$$Q^*(s,a) = R(s) + \gamma \sum_{s'} P(s'|s,a) \max_{a'} Q^*(s',a')$$
+\end{definition}
+
+\begin{algorithm}
+\caption{Q-Learning}
+\begin{algorithmic}[1]
+\Function{Q-Learning}{}
+    \State Initialize $Q[s,a]$ arbitrarily for all $s,a$
+    \State Observe initial state $s$
+    \Repeat
+        \State Choose action $a$ using policy derived from $Q$ (e.g., $\epsilon$-greedy)
+        \State Execute action $a$
+        \State Observe reward $r$ and new state $s'$
+        \State $Q[s,a] \gets Q[s,a] + \alpha(r + \gamma \max_{a'} Q[s',a'] - Q[s,a])$
+        \State $s \gets s'$
+    \Until{termination}
+\EndFunction
+\end{algorithmic}
+\end{algorithm}
+
+\begin{important}
+Q-Learning converges to optimal Q-values if:
+\begin{itemize}
+    \item All state-action pairs are visited infinitely often
+    \item Learning rate $\alpha$ decays appropriately
+    \item Q-Learning is off-policy (learns optimal policy while following exploratory policy)
+\end{itemize}
+\end{important}
+
+%================================================================================
+\section{Week 8-9: Probability and Uncertainty}
+%================================================================================
+
+\subsection{Basic Probability Theory}
+
+\begin{definition}[Probability Axioms]
+\begin{enumerate}
+    \item $0 \leq P(A) \leq 1$ for any event $A$
+    \item $P(\Omega) = 1$ where $\Omega$ is sample space
+    \item For disjoint events: $P(A \cup B) = P(A) + P(B)$
+\end{enumerate}
+\end{definition}
+
+\begin{theorem}[Product Rule]
+$$P(A \cap B) = P(A|B)P(B) = P(B|A)P(A)$$
+\end{theorem}
+
+\begin{theorem}[Bayes' Rule]
+$$P(B|A) = \frac{P(A|B)P(B)}{P(A)}$$
+where $P(A) = \sum_i P(A|B_i)P(B_i)$ (law of total probability)
+\end{theorem}
+
+\subsection{Random Variables}
+
+\begin{definition}[Random Variable]
+A random variable $X$ is a function from sample space to real values.
+\begin{itemize}
+    \item \textbf{Discrete}: Takes countable values (e.g., dice roll)
+    \item \textbf{Continuous}: Takes values in continuous range (e.g., temperature)
+\end{itemize}
+\end{definition}
+
+\subsection{Joint and Conditional Distributions}
+
+\begin{definition}[Joint Distribution]
+$P(X_1, X_2, ..., X_n)$ specifies probability for every combination of values.
+\begin{itemize}
+    \item Marginalization: $P(X) = \sum_y P(X,Y=y)$
+    \item Chain Rule: $P(X_1,...,X_n) = \prod_i P(X_i|X_{i-1},...,X_1)$
+\end{itemize}
+\end{definition}
+
+\subsection{Independence and Conditional Independence}
+
+\begin{definition}[Independence]
+Variables $X$ and $Y$ are independent if:
+$$P(X,Y) = P(X)P(Y)$$
+Equivalently: $P(X|Y) = P(X)$ or $P(Y|X) = P(Y)$
+\end{definition}
+
+\begin{definition}[Conditional Independence]
+$X$ and $Y$ are conditionally independent given $Z$ if:
+$$P(X,Y|Z) = P(X|Z)P(Y|Z)$$
+Notation: $X \perp Y | Z$
+\end{definition}
+
+\subsection{Naive Bayes Model}
+
+\begin{concept}
+Assumes all effects are conditionally independent given cause:
+$$P(Cause, E_1, ..., E_n) = P(Cause) \prod_i P(E_i|Cause)$$
+
+Application to classification:
+$$P(Class|Features) \propto P(Class) \prod_i P(Feature_i|Class)$$
+\end{concept}
+
+%================================================================================
+\section{Practice Problems and Key Concepts}
+%================================================================================
+
+\subsection{Search Problems}
+
+\begin{example}[Comparing Search Algorithms]
+Consider a search tree with branching factor $b=3$ and solution at depth $d=4$:
+\begin{itemize}
+    \item BFS: Explores $\sum_{i=0}^4 3^i = 121$ nodes
+    \item DFS: Could explore up to $3^m$ nodes (where $m$ is max depth)
+    \item IDS: Explores $\approx 1.33 \times 121 = 161$ nodes
+    \item A* with good heuristic: May explore far fewer nodes
+\end{itemize}
+\end{example}
+
+\subsection{Game Playing}
+
+\begin{example}[Alpha-Beta Pruning]
+In best case (perfect ordering), alpha-beta examines $O(b^{d/2})$ nodes instead of $O(b^d)$.
+\begin{itemize}
+    \item Allows searching twice as deep in same time
+    \item Move ordering critical for performance
+    \item Transposition tables avoid re-evaluating positions
+\end{itemize}
+\end{example}
+
+\subsection{MDPs and Reinforcement Learning}
+
+\begin{example}[Grid World MDP]
+4×3 grid with:
+\begin{itemize}
+    \item Terminal states: +1 and -1 rewards
+    \item Living penalty: -0.04 per step
+    \item Actions: Up, Down, Left, Right (80\% success, 10\% perpendicular)
+    \item Optimal policy depends on discount factor $\gamma$
+\end{itemize}
+\end{example}
+
+\subsection{Probability}
+
+\begin{example}[Medical Diagnosis]
+Given:
+\begin{itemize}
+    \item $P(Disease) = 0.01$
+    \item $P(+Test|Disease) = 0.99$
+    \item $P(+Test|\neg Disease) = 0.05$
+\end{itemize}
+Find $P(Disease|+Test)$:
+$$P(Disease|+Test) = \frac{0.99 \times 0.01}{0.99 \times 0.01 + 0.05 \times 0.99} = 0.167$$
+\end{example}
+
+%================================================================================
+\section{Exam Preparation Checklist}
+%================================================================================
+
+\begin{tcolorbox}[colback=yellow!10!white,colframe=yellow!50!black,title=Essential Topics to Review]
+\begin{itemize}[leftmargin=*]
+    \item[\checkmark] \textbf{Search Algorithms:} BFS, DFS, UCS, A*, implementation details
+    \item[\checkmark] \textbf{Heuristics:} Admissibility, consistency, creating good heuristics
+    \item[\checkmark] \textbf{Game Trees:} Minimax, alpha-beta pruning, evaluation functions
+    \item[\checkmark] \textbf{MDPs:} Bellman equations, value iteration, policy iteration
+    \item[\checkmark] \textbf{Reinforcement Learning:} TD learning, Q-learning, exploration strategies
+    \item[\checkmark] \textbf{Probability:} Bayes' rule, independence, joint distributions
+    \item[\checkmark] \textbf{Complexity Analysis:} Time and space for each algorithm
+\end{itemize}
+\end{tcolorbox}
+
+\begin{tcolorbox}[colback=green!10!white,colframe=green!50!black,title=Problem-Solving Tips]
+\begin{enumerate}[leftmargin=*]
+    \item For search problems: Draw the search tree, track frontier and explored sets
+    \item For game trees: Work backwards from leaves, track $\alpha$ and $\beta$ values
+    \item For MDPs: Set up Bellman equations, iterate until convergence
+    \item For probability: Use tree diagrams, apply Bayes' rule systematically
+    \item Always verify: completeness, optimality, and complexity
+\end{enumerate}
+\end{tcolorbox}
+
+\end{document}

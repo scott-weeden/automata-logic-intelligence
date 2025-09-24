@@ -1,0 +1,57 @@
+intelligent-systems-project/
+├── README.md
+├── requirements.txt
+├── setup.py
+├── applications/
+│   ├── __init__.py
+│   ├── pathfinding_demo.py
+│   ├── game_ai_demo.py
+│   ├── mdp_robot_navigation.py
+│   ├── medical_diagnosis_bayes.py
+│   └── reinforcement_learning_trader.py
+├── docs/
+│   ├── autograder_documentation.md
+│   ├── api_reference.md
+│   ├── search_algorithms.md
+│   ├── game_playing.md
+│   └── mdp_reinforcement.md
+├── notebooks/
+│   ├── 01_search_fundamentals.ipynb
+│   ├── 02_implementing_bfs_dfs.ipynb
+│   ├── 03_uniform_cost_search.ipynb
+│   ├── 04_astar_heuristics.ipynb
+│   ├── 05_minimax_alphabeta.ipynb
+│   └── 06_mdp_basics.ipynb
+├── src/
+│   ├── __init__.py
+│   ├── search/
+│   │   ├── __init__.py
+│   │   ├── algorithms.py
+│   │   ├── heuristics.py
+│   │   ├── problem.py
+│   │   └── utils.py
+│   ├── games/
+│   │   ├── __init__.py
+│   │   ├── minimax.py
+│   │   ├── alphabeta.py
+│   │   └── game_state.py
+│   ├── mdp/
+│   │   ├── __init__.py
+│   │   ├── mdp.py
+│   │   ├── value_iteration.py
+│   │   └── policy_iteration.py
+│   └── learning/
+│       ├── __init__.py
+│       ├── qlearning.py
+│       └── td_learning.py
+├── templates/
+│   ├── search_agent_template.py
+│   ├── game_agent_template.py
+│   ├── mdp_agent_template.py
+│   └── test_template.py
+└── tests/
+    ├── __init__.py
+    ├── test_search.py
+    ├── test_games.py
+    ├── test_mdp.py
+    └── test_learning.py
