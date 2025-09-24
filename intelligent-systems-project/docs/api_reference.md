@@ -317,6 +317,7 @@ The `applications` package bundles reusable demonstrations that showcase the cor
 | Function | Description | Console Script |
 |----------|-------------|----------------|
 | `applications.pathfinding_demo.run_pathfinding_demo(show_output: bool = True)` | Compares BFS, DFS, UCS, greedy, and A* on a sample grid. | `is-pathfinding-demo` |
+| `applications.game_ai_demo.play_human_vs_ai(human_symbol: str = 'X', show_output: bool = True)` | Lets a human challenge the minimax agent. | `is-game-human-demo` |
 | `applications.game_ai_demo.play_optimal_tictactoe(show_output: bool = True)` | Plays perfect Tic-Tac-Toe using depth-limited minimax. | `is-game-demo` |
 | `applications.mdp_robot_navigation.analyse_robot_navigation(show_output: bool = True)` | Runs value iteration and policy iteration on a stochastic grid world and visualises the resulting policies. | `is-mdp-demo` |
 | `applications.reinforcement_learning_trader.train_trading_agent(episodes: int = 150, show_output: bool = True)` | Trains a toy Q-learning agent on a synthetic price series. | `is-rl-trader` |

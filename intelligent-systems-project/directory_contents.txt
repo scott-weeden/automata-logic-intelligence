@@ -21,7 +21,8 @@ intelligent-systems-project/
 │   ├── 03_uniform_cost_search.ipynb
 │   ├── 04_astar_heuristics.ipynb
 │   ├── 05_minimax_alphabeta.ipynb
-│   └── 06_mdp_basics.ipynb
+│   ├── 06_mdp_basics.ipynb
+│   └── 07_pacman_assignment.ipynb
 ├── src/
 │   ├── __init__.py
 │   ├── search/

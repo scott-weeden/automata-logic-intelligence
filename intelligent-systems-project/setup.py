@@ -45,6 +45,7 @@ setup(
         "console_scripts": [
             "is-pathfinding-demo=applications.pathfinding_demo:run_pathfinding_demo",
             "is-game-demo=applications.game_ai_demo:play_optimal_tictactoe",
+            "is-game-human-demo=applications.game_ai_demo:play_human_vs_ai",
             "is-mdp-demo=applications.mdp_robot_navigation:analyse_robot_navigation",
             "is-rl-trader=applications.reinforcement_learning_trader:train_trading_agent",
             "is-medical-bayes=applications.medical_diagnosis_bayes:diagnose_patient",
