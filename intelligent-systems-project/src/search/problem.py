@@ -13,49 +13,34 @@ A search problem consists of:
 class SearchProblem:
     """
     Abstract base class for search problems.
-    Subclasses must implement actions, result, goal_test methods.
+    Subclasses must implement get_start_state, is_goal_state, get_successors methods.
     """
     
-    def __init__(self, initial_state):
-        """Initialize with starting state."""
-        self.initial_state = initial_state
+    def get_start_state(self):
+        """Return the start state for the search problem."""
+        raise NotImplementedError("Subclass must implement get_start_state method")
     
-    def actions(self, state):
-        """
-        Return list of actions available in given state.
-        Must be implemented by subclasses.
-        """
-        raise NotImplementedError("Subclass must implement actions method")
+    def is_goal_state(self, state):
+        """Return True if state is a goal state."""
+        raise NotImplementedError("Subclass must implement is_goal_state method")
     
-    def result(self, state, action):
+    def get_successors(self, state):
         """
-        Return state that results from executing action in state.
-        Also called transition model.
+        Return list of (successor, action, stepCost) tuples.
+        For a given state, this should return a list of triples,
+        (successor, action, stepCost), where 'successor' is a
+        successor to the current state, 'action' is the action
+        required to get there, and 'stepCost' is the incremental
+        cost of expanding to that successor.
         """
-        raise NotImplementedError("Subclass must implement result method")
+        raise NotImplementedError("Subclass must implement get_successors method")
     
-    def goal_test(self, state):
+    def get_cost_of_actions(self, actions):
         """
-        Return True if state is a goal state.
-        Default implementation checks against self.goal if it exists.
+        Return the total cost of a particular sequence of actions.
+        The sequence must be composed of legal moves.
         """
-        if hasattr(self, 'goal'):
-            return state == self.goal
-        raise NotImplementedError("Subclass must implement goal_test method")
-    
-    def path_cost(self, cost_so_far, state1, action, state2):
-        """
-        Return cost of path from start to state2 via state1 and action.
-        Default implementation assumes cost 1 for every step.
-        """
-        return cost_so_far + 1
-    
-    def value(self, state):
-        """
-        Return value of state for optimization problems.
-        Used in hill-climbing and simulated annealing.
-        """
-        raise NotImplementedError("Subclass must implement value method")
+        return len(actions)
 
 class GridSearchProblem(SearchProblem):
     """
@@ -70,33 +55,34 @@ class GridSearchProblem(SearchProblem):
         start: (row, col) starting position
         goal: (row, col) goal position
         """
-        super().__init__(start)
         self.grid = grid
+        self.start = start
         self.goal = goal
         self.rows = len(grid)
         self.cols = len(grid[0]) if grid else 0
     
-    def actions(self, state):
+    def get_start_state(self):
+        """Return starting position."""
+        return self.start
+    
+    def is_goal_state(self, state):
+        """Return True if state is the goal."""
+        return state == self.goal
+    
+    def get_successors(self, state):
         """Return valid moves from current position."""
+        successors = []
         row, col = state
-        actions = []
         
         # Check four directions: up, down, left, right
-        for dr, dc in [(-1, 0), (1, 0), (0, -1), (0, 1)]:
+        moves = [(-1, 0, 'North'), (1, 0, 'South'), (0, -1, 'West'), (0, 1, 'East')]
+        
+        for dr, dc, action in moves:
             new_row, new_col = row + dr, col + dc
             if (0 <= new_row < self.rows and 
                 0 <= new_col < self.cols and 
-                self.grid[new_row][new_col] == 0):
-                actions.append((dr, dc))
+                self.grid[new_row][new_col] != '#' and
+                self.grid[new_row][new_col] != 1):
+                successors.append(((new_row, new_col), action, 1))
         
-        return actions
-    
-    def result(self, state, action):
-        """Apply action to get new state."""
-        row, col = state
-        dr, dc = action
-        return (row + dr, col + dc)
-    
-    def path_cost(self, cost_so_far, state1, action, state2):
-        """Uniform cost for grid movement."""
-        return cost_so_far + 1
+        return successors

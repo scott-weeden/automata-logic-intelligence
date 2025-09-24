@@ -13,129 +13,183 @@ Minimax assumes:
 
 import math
 
-def minimax_decision(game_state, game):
-    """
-    Return best action for current player using minimax algorithm.
+class GameState:
+    """Base class for game states."""
     
-    Args:
-        game_state: Current state of the game
-        game: Game object with methods for actions, result, terminal_test, utility
+    def get_legal_actions(self, agent_index=0):
+        """Return list of legal actions for agent."""
+        raise NotImplementedError
     
-    Returns:
-        Best action according to minimax principle
-    """
-    def max_value(state):
-        """Return maximum utility value for MAX player."""
-        if game.terminal_test(state):
-            return game.utility(state, game.to_move(game_state))
-        
-        v = -math.inf
-        for action in game.actions(state):
-            v = max(v, min_value(game.result(state, action)))
-        return v
+    def generate_successor(self, agent_index, action):
+        """Return successor state after agent takes action."""
+        raise NotImplementedError
     
-    def min_value(state):
-        """Return minimum utility value for MIN player."""
-        if game.terminal_test(state):
-            return game.utility(state, game.to_move(game_state))
-        
-        v = math.inf
-        for action in game.actions(state):
-            v = min(v, max_value(game.result(state, action)))
-        return v
+    def is_terminal(self):
+        """Return True if game is over."""
+        raise NotImplementedError
     
-    # Find action that leads to best outcome for current player
-    current_player = game.to_move(game_state)
-    best_action = None
-    best_value = -math.inf
-    
-    for action in game.actions(game_state):
-        next_state = game.result(game_state, action)
-        action_value = min_value(next_state)
-        
-        if action_value > best_value:
-            best_value = action_value
-            best_action = action
-    
-    return best_action
+    def get_utility(self, agent_index=0):
+        """Return utility for agent in terminal state."""
+        raise NotImplementedError
 
-def minimax_cutoff_decision(game_state, game, depth_limit=4, eval_fn=None):
-    """
-    Minimax with depth cutoff for practical game playing.
-    Uses evaluation function when depth limit reached.
+class GameAgent:
+    """Base class for game agents."""
     
-    Args:
-        game_state: Current game state
-        game: Game object
-        depth_limit: Maximum search depth
-        eval_fn: Evaluation function for non-terminal states
+    def __init__(self, index=0):
+        self.index = index
+        self.nodes_explored = 0
     
-    Returns:
-        Best action within depth limit
-    """
-    if eval_fn is None:
-        eval_fn = lambda state, player: 0  # Default neutral evaluation
-    
-    def max_value(state, depth):
-        """Max value with depth cutoff."""
-        if game.terminal_test(state):
-            return game.utility(state, game.to_move(game_state))
-        if depth >= depth_limit:
-            return eval_fn(state, game.to_move(game_state))
-        
-        v = -math.inf
-        for action in game.actions(state):
-            v = max(v, min_value(game.result(state, action), depth + 1))
-        return v
-    
-    def min_value(state, depth):
-        """Min value with depth cutoff."""
-        if game.terminal_test(state):
-            return game.utility(state, game.to_move(game_state))
-        if depth >= depth_limit:
-            return eval_fn(state, game.to_move(game_state))
-        
-        v = math.inf
-        for action in game.actions(state):
-            v = min(v, max_value(game.result(state, action), depth + 1))
-        return v
-    
-    # Find best action within depth limit
-    best_action = None
-    best_value = -math.inf
-    
-    for action in game.actions(game_state):
-        next_state = game.result(game_state, action)
-        action_value = min_value(next_state, 1)
-        
-        if action_value > best_value:
-            best_value = action_value
-            best_action = action
-    
-    return best_action
+    def get_action(self, game_state):
+        """Return action for current game state."""
+        raise NotImplementedError
 
-class MinimaxAgent:
-    """
-    Agent that uses minimax algorithm for decision making.
-    Can be configured with depth limits and evaluation functions.
-    """
+class MinimaxAgent(GameAgent):
+    """Agent that uses minimax algorithm for decision making."""
     
-    def __init__(self, depth_limit=None, eval_fn=None):
-        """
-        Initialize minimax agent.
-        
-        Args:
-            depth_limit: Maximum search depth (None for full search)
-            eval_fn: Evaluation function for non-terminal positions
-        """
-        self.depth_limit = depth_limit
-        self.eval_fn = eval_fn
+    def __init__(self, index=0, depth=2):
+        super().__init__(index)
+        self.depth = depth
     
-    def get_action(self, game_state, game):
+    def get_action(self, game_state):
         """Get best action using minimax algorithm."""
-        if self.depth_limit is None:
-            return minimax_decision(game_state, game)
-        else:
-            return minimax_cutoff_decision(
-                game_state, game, self.depth_limit, self.eval_fn
-            )
+        self.nodes_explored = 0
+        
+        def minimax(state, depth, agent_index):
+            self.nodes_explored += 1
+            
+            if state.is_terminal() or depth == 0:
+                return state.get_utility(self.index)
+            
+            if agent_index == self.index:  # Maximizing player
+                max_eval = -math.inf
+                for action in state.get_legal_actions(agent_index):
+                    successor = state.generate_successor(agent_index, action)
+                    eval_score = minimax(successor, depth - 1, 1 - agent_index)
+                    max_eval = max(max_eval, eval_score)
+                return max_eval
+            else:  # Minimizing player
+                min_eval = math.inf
+                for action in state.get_legal_actions(agent_index):
+                    successor = state.generate_successor(agent_index, action)
+                    eval_score = minimax(successor, depth - 1, 1 - agent_index)
+                    min_eval = min(min_eval, eval_score)
+                return min_eval
+        
+        # Find best action
+        best_action = None
+        best_value = -math.inf
+        
+        for action in game_state.get_legal_actions(self.index):
+            successor = game_state.generate_successor(self.index, action)
+            action_value = minimax(successor, self.depth - 1, 1 - self.index)
+            
+            if action_value > best_value:
+                best_value = action_value
+                best_action = action
+        
+        return best_action
+
+class AlphaBetaAgent(GameAgent):
+    """Game-playing agent using alpha-beta pruning."""
+    
+    def __init__(self, index=0, depth=2):
+        super().__init__(index)
+        self.depth = depth
+    
+    def get_action(self, game_state):
+        """Get best action using alpha-beta pruning."""
+        self.nodes_explored = 0
+        
+        def alphabeta(state, depth, alpha, beta, agent_index):
+            self.nodes_explored += 1
+            
+            if state.is_terminal() or depth == 0:
+                return state.get_utility(self.index)
+            
+            if agent_index == self.index:  # Maximizing player
+                max_eval = -math.inf
+                for action in state.get_legal_actions(agent_index):
+                    successor = state.generate_successor(agent_index, action)
+                    eval_score = alphabeta(successor, depth - 1, alpha, beta, 1 - agent_index)
+                    max_eval = max(max_eval, eval_score)
+                    alpha = max(alpha, eval_score)
+                    if beta <= alpha:
+                        break  # Beta cutoff
+                return max_eval
+            else:  # Minimizing player
+                min_eval = math.inf
+                for action in state.get_legal_actions(agent_index):
+                    successor = state.generate_successor(agent_index, action)
+                    eval_score = alphabeta(successor, depth - 1, alpha, beta, 1 - agent_index)
+                    min_eval = min(min_eval, eval_score)
+                    beta = min(beta, eval_score)
+                    if beta <= alpha:
+                        break  # Alpha cutoff
+                return min_eval
+        
+        # Find best action
+        best_action = None
+        best_value = -math.inf
+        alpha = -math.inf
+        beta = math.inf
+        
+        for action in game_state.get_legal_actions(self.index):
+            successor = game_state.generate_successor(self.index, action)
+            action_value = alphabeta(successor, self.depth - 1, alpha, beta, 1 - self.index)
+            
+            if action_value > best_value:
+                best_value = action_value
+                best_action = action
+            
+            alpha = max(alpha, action_value)
+        
+        return best_action
+
+class ExpectimaxAgent(GameAgent):
+    """Agent using expectimax for games with chance elements."""
+    
+    def __init__(self, index=0, depth=2):
+        super().__init__(index)
+        self.depth = depth
+    
+    def get_action(self, game_state):
+        """Get best action using expectimax algorithm."""
+        self.nodes_explored = 0
+        
+        def expectimax(state, depth, agent_index):
+            self.nodes_explored += 1
+            
+            if state.is_terminal() or depth == 0:
+                return state.get_utility(self.index)
+            
+            if agent_index == self.index:  # Maximizing player
+                max_eval = -math.inf
+                for action in state.get_legal_actions(agent_index):
+                    successor = state.generate_successor(agent_index, action)
+                    eval_score = expectimax(successor, depth - 1, 1 - agent_index)
+                    max_eval = max(max_eval, eval_score)
+                return max_eval
+            else:  # Chance node (expectation)
+                actions = state.get_legal_actions(agent_index)
+                if not actions:
+                    return state.get_utility(self.index)
+                
+                total_value = 0
+                for action in actions:
+                    successor = state.generate_successor(agent_index, action)
+                    total_value += expectimax(successor, depth - 1, 1 - agent_index)
+                return total_value / len(actions)
+        
+        # Find best action
+        best_action = None
+        best_value = -math.inf
+        
+        for action in game_state.get_legal_actions(self.index):
+            successor = game_state.generate_successor(self.index, action)
+            action_value = expectimax(successor, self.depth - 1, 1 - self.index)
+            
+            if action_value > best_value:
+                best_value = action_value
+                best_action = action
+        
+        return best_action
