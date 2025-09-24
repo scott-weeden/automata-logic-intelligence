@@ -54,25 +54,28 @@ jupyter notebook notebooks/completed/07_pacman_assignment.ipynb
 
 #### 2. **Run Demonstrations**
 ```bash
-# Human vs AI TicTacToe
-python applications/game_ai_demo.py
+# Using Make commands (recommended)
+make demo                    # Search algorithm comparison
+make demo-game              # Human vs AI TicTacToe
+make demo-mdp               # MDP robot navigation
+make run-demos              # Run all demos
 
-# Search algorithm comparison  
+# Or run directly
 python applications/pathfinding_demo.py
-
-# MDP robot navigation
+python applications/game_ai_demo.py
 python applications/mdp_robot_navigation.py
 ```
 
 #### 3. **Run Tests**
 ```bash
-# All search algorithms
+# Using Make commands (recommended)
+make test                   # Run all tests
+make test-coverage         # Run tests with coverage report
+make test-fast            # Skip slow tests
+
+# Or use pytest directly
 pytest tests/test_search.py -v
-
-# Game playing (Alpha-Beta vs Minimax)
 pytest tests/test_games.py -v
-
-# MDPs and reinforcement learning
 pytest tests/test_mdp.py tests/test_learning.py -v
 ```
 
@@ -117,11 +120,28 @@ pytest tests/test_mdp.py tests/test_learning.py -v
 
 ### 🔧 Installation
 
+#### Using Make (Recommended)
 ```bash
-git clone <repository>
-cd intelligent-systems-project
-pip install -e ".[dev]"
+git clone https://github.com/scott-weeden/automata-logic-intelligence.git
+cd automata-logic-intelligence/intelligent-systems-project
+make dev-setup          # Complete development setup with virtual environment
+source venv/bin/activate # Activate virtual environment
 ```
+
+#### Manual Installation
+```bash
+git clone https://github.com/scott-weeden/automata-logic-intelligence.git
+cd automata-logic-intelligence/intelligent-systems-project
+pip install -e ".[dev]"  # Development installation
+# or
+pip install -e ".[all]"  # Install with all optional dependencies
+```
+
+#### Available Installation Options
+- `pip install -e .` - Basic installation
+- `pip install -e ".[dev]"` - With development tools (pytest, coverage, linting)
+- `pip install -e ".[viz]"` - With visualization libraries (seaborn, networkx)
+- `pip install -e ".[all]"` - All optional dependencies
 
 ### 📚 Learning Path
 
@@ -130,5 +150,32 @@ pip install -e ".[dev]"
 3. **Explore**: `applications/` for real-world demos
 4. **Deep Dive**: `docs/guides/` for algorithm details
 5. **Validate**: `tests/` to verify understanding
+
+### 🛠️ Development Tools
+
+#### Make Commands
+```bash
+make help                   # Show all available commands
+make dev-setup             # Complete development setup
+make test                  # Run all tests
+make test-coverage         # Run tests with coverage
+make lint                  # Run code linting
+make format               # Format code (black + isort)
+make check-all            # Run all quality checks
+make jupyter              # Start Jupyter notebook
+make ci                   # Simulate CI pipeline locally
+```
+
+#### Code Quality
+- **Formatting**: Black + isort for consistent code style
+- **Linting**: Flake8 for code quality checks
+- **Type Checking**: MyPy for static type analysis
+- **Testing**: Pytest with coverage reporting
+- **Pre-commit**: Automated code quality hooks
+
+#### Project Configuration
+- **pyproject.toml**: Modern Python packaging and tool configuration
+- **Makefile**: Comprehensive development workflow automation
+- **Requirements**: Managed through pyproject.toml optional dependencies
 
 **🎉 From basic search to advanced AI - master the complete intelligent systems toolkit!**
