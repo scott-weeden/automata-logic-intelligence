@@ -1,0 +1,23 @@
+FROM ubuntu:22.04
+
+# Set timezone to avoid interactive prompt
+ENV DEBIAN_FRONTEND=noninteractive
+ENV TZ=America/Chicago
+
+# Install TeX Live with TikZ support
+RUN apt-get update && apt-get install -y \
+    texlive-latex-base \
+    texlive-latex-recommended \
+    texlive-latex-extra \
+    texlive-fonts-recommended \
+    texlive-pictures \
+    && rm -rf /var/lib/apt/lists/*
+
+# Set working directory
+WORKDIR /workspace
+
+# Copy LaTeX files
+COPY main.tex .
+
+# Default command to compile LaTeX
+CMD ["pdflatex", "-interaction=nonstopmode", "main.tex"]

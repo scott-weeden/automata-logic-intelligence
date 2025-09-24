@@ -1,0 +1,20 @@
+FROM alpine:3.22.1
+
+# Install TeX Live from Alpine packages
+RUN apk add --no-cache \
+    texlive \
+    texlive-latex-extra \
+    texlive-fonts-recommended \
+    texlive-fonts-extra \
+    texlive-lang-english \
+    make
+
+# Set working directory
+WORKDIR /workspace
+
+# Copy LaTeX files
+COPY main.tex .
+COPY *.tex ./
+
+# Default command to compile LaTeX
+CMD ["pdflatex", "main.tex"]
