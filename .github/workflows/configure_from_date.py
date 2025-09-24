@@ -17,9 +17,17 @@ def github_env(variable, value):
 
 
 def get_tl_year(mirror):
-    listing = urllib.request.urlopen(mirror).read().decode('utf-8')
-    matches = re.findall('>TEXLIVE_([\\d]+)<', listing)
-    return int(matches[0])
+    try:
+        listing = urllib.request.urlopen(mirror).read().decode('utf-8')
+        matches = re.findall('>TEXLIVE_([\\d]+)<', listing)
+        if matches:
+            return int(matches[0])
+        else:
+            # Fallback to current year if no TEXLIVE_ found
+            return 2025
+    except Exception:
+        # Fallback to current year if URL fails
+        return 2025
 
 
 def main():
