@@ -1,254 +1,389 @@
-# Automata Theory Educational Project 🤖
+# Automata Theory Library 🤖
 
-A comprehensive educational library and interactive notebooks for learning automata theory, formal languages, and computational complexity.
+**Making Undecidability Visceral** - Watch infinite loops spiral in real-time!
 
-## 📁 Project Structure
+A comprehensive Python library for learning and experimenting with automata theory, featuring immediate red/green test feedback and visual execution traces that make theoretical computer science tangible.
 
-```
-automata-theory-project/
-├── src/automata/           # Core automata implementations
-├── notebooks/              # Educational Jupyter notebooks
-├── tests/                  # Comprehensive test suites
-├── templates/              # Web interface templates
-└── docs/                   # Additional documentation
-```
+## 🚀 Features
 
-## 🧠 Core Automata Library (`src/automata/`)
+### Core Automata Types
+- **DFA** (Deterministic Finite Automaton)
+- **NFA** (Non-deterministic Finite Automaton with ε-transitions)
+- **Turing Machines** with loop detection and step limits
+- **Universal Turing Machine** (UTM) simulator
 
-### Finite Automata
-- **`dfa.py`** - Deterministic Finite Automaton
-  - Recognizes regular languages
-  - Complete transition function
-  - Used for pattern matching, lexical analysis
+### Visceral Undecidability
+- `--trace` flag to watch execution step-by-step
+- `--max-steps` to explore infinite loops safely
+- Real-time loop detection and visualization
+- Visual spiraling of non-halting computations
 
-- **`nfa.py`** - Non-deterministic Finite Automaton  
-  - Multiple transitions per state-symbol pair
-  - Epsilon (ε) transitions supported
-  - Equivalent power to DFA but more intuitive design
+### Immediate Feedback
+- Red/Green pytest integration
+- Instant validation when students write machines
+- Comprehensive test suites for all exercises
+- Clear error messages with hints
 
-### Context-Free Recognition
-- **`pda.py`** - Pushdown Automaton
-  - Stack-based memory for context-free languages
-  - Recognizes nested structures (parentheses, programming languages)
-  - Non-deterministic with epsilon transitions
+## 📦 Installation
 
-### Context-Sensitive Recognition  
-- **`lba.py`** - Linear Bounded Automaton
-  - Turing machine with tape bounded by input length
-  - Recognizes context-sensitive languages
-  - Tape markers (⊢, ⊣) enforce boundaries
-
-### Universal Computation
-- **`tm.py`** - Turing Machine
-  - Most powerful computational model
-  - Infinite tape with read/write head
-  - Demonstrates halting problem and undecidability
-
-### Quantum Computing
-- **`qfa.py`** - Quantum Finite Automaton
-  - Quantum superposition of states
-  - Probabilistic acceptance with interference effects
-  - Multiple variants: MeasureOnceQFA, ReversibleQFA
-
-## 📚 Educational Notebooks (`notebooks/`)
-
-### `01_regular_languages.ipynb`
-**Concepts**: Regular languages, finite automata, regular expressions
-- DFA construction and minimization
-- NFA to DFA conversion
-- Regular expression equivalence
-- Pumping lemma demonstrations
-- Closure properties of regular languages
-
-### `02_cfg_pda.ipynb` 
-**Concepts**: Context-free grammars, pushdown automata
-- CFG parsing and derivations
-- PDA construction from CFGs
-- Stack-based recognition algorithms
-- Context-free pumping lemma
-- Inherent ambiguity examples
-
-### `03_turing_decidability.ipynb`
-**Concepts**: Turing machines, computability, decidability
-- TM programming and execution tracing
-- Halting problem demonstration
-- Rice's theorem illustrations
-- Decidable vs undecidable problems
-- Reduction techniques
-
-## 🧪 Test Suites (`tests/`)
-
-### `test_dfa.py`
-- Basic DFA functionality
-- Transition completeness
-- Acceptance/rejection testing
-- Edge cases and error handling
-
-### `test_nfa.py` 
-- Non-deterministic behavior
-- Epsilon closure algorithms
-- NFA-specific test patterns
-- Complex transition scenarios
-
-### `test_pda.py`
-- Stack operation correctness
-- Context-free language recognition
-- Balanced structures (parentheses, brackets)
-- Non-deterministic path exploration
-
-### `test_lba.py`
-- Tape boundary enforcement
-- Context-sensitive language patterns
-- Configuration loop detection
-- Trace functionality validation
-
-### `test_qfa.py`
-- Quantum state evolution
-- Interference effect verification
-- Probabilistic acceptance testing
-- Amplitude conservation checks
-
-### `test_tm.py`
-- Turing machine execution
-- Halting behavior analysis
-- Infinite loop detection
-- Trace output validation
-
-## 🌐 Web Interface (`src/`)
-
-### `web_playground.py`
-**Interactive automata testing environment**
-- Multi-tab interface for all automata types
-- Real-time input testing with visual feedback
-- GraphViz integration for state diagram generation
-- Example library with common patterns
-- Execution tracing for educational debugging
-
-### `cli.py`
-**Command-line interface for automata operations**
+### Quick Install
 ```bash
-# Test automata with various inputs
-python cli.py test dfa config.json "input_string"
-python cli.py test pda config.json "((()))" --trace
-python cli.py test qfa config.json "01" --probability
-
-# Launch interactive modes
-python cli.py interactive    # Command-line REPL
-python cli.py web --port 5000    # Web interface
-
-# Generate examples and documentation
-python cli.py examples pda
-python cli.py examples qfa
+pip install automata-theory
 ```
 
-## 📖 Theoretical Concepts Covered
+### Development Install
+```bash
+git clone https://github.com/scott-weeden/automata-theory
+cd automata-theory
+pip install -e ".[dev]"
+```
 
-### Chomsky Hierarchy
-1. **Type 3 (Regular)**: DFA, NFA, Regular Expressions
-2. **Type 2 (Context-Free)**: PDA, Context-Free Grammars  
-3. **Type 1 (Context-Sensitive)**: LBA, Context-Sensitive Grammars
-4. **Type 0 (Unrestricted)**: Turing Machines, Recursively Enumerable
+## 🎯 Quick Start
 
-### Computational Complexity
-- **Decidability**: Problems with algorithmic solutions
-- **Undecidability**: Halting problem, Rice's theorem
-- **Time Complexity**: P, NP, PSPACE relationships
-- **Space Complexity**: LOGSPACE, PSPACE hierarchies
+### 1. Create Your First DFA
+```python
+from automata_lib import DFA
 
-### Quantum Computing Foundations
-- **Superposition**: Multiple states simultaneously
-- **Interference**: Constructive and destructive amplitude effects
-- **Measurement**: Probabilistic state collapse
-- **Unitary Evolution**: Reversible quantum operations
+# DFA that accepts strings with even number of 0s
+dfa = DFA(
+    states={'q0', 'q1'},
+    alphabet={'0', '1'},
+    transitions={
+        ('q0', '0'): 'q1',
+        ('q0', '1'): 'q0',
+        ('q1', '0'): 'q0',
+        ('q1', '1'): 'q1',
+    },
+    start_state='q0',
+    accept_states={'q0'}
+)
+
+# Test it
+print(dfa.accepts('0011'))  # True (two 0s)
+print(dfa.accepts('000'))   # False (three 0s)
+```
+
+### 2. Watch a Turing Machine Loop
+```bash
+# Create an infinite loop demonstration
+automata undecidability
+
+# Watch it spiral with trace
+automata run undecidable.tm.json '111' --trace --max-steps 50
+
+# See loop detection in action
+automata run undecidable.tm.json '111' --trace --loop-detect
+```
+
+### 3. Get Instant Test Feedback
+```bash
+# Run tests on your implementation
+pytest test_automata.py -v --tb=short
+
+# Watch for red/green feedback
+✅ test_student_dfa_even_zeros PASSED
+❌ test_student_dfa_divisible_by_3 FAILED
+   Expected: True for input '11'
+   Got: False
+   Hint: Binary 11 is decimal 3
+```
+
+## 📚 Student Exercises
+
+### Exercise Structure
+```
+student_solutions/
+├── dfa_even_zeros.json       # Exercise 1
+├── dfa_divisible_3.json      # Exercise 2
+├── dfa_no_consecutive_ones.json  # Exercise 3
+├── nfa_ends_01.json          # Exercise 4
+├── nfa_contains_101.json     # Exercise 5
+├── tm_binary_increment.json  # Exercise 6
+├── tm_palindrome.json        # Exercise 7
+└── tm_loop_demo.json         # Exercise 8
+```
+
+### Example Exercise File
+```json
+{
+  "type": "DFA",
+  "states": ["q0", "q1"],
+  "alphabet": ["0", "1"],
+  "transitions": {
+    "q0,0": "q1",
+    "q0,1": "q0",
+    "q1,0": "q0",
+    "q1,1": "q1"
+  },
+  "start_state": "q0",
+  "accept_states": ["q0"]
+}
+```
+
+## 🔬 Exploring Undecidability
+
+### The Halting Problem Made Real
+```python
+from automata_lib import TuringMachine, HaltReason
+
+# Create a TM that might not halt
+tm = create_infinite_loop_tm()
+
+# Run with different inputs
+accepted, reason, steps = tm.run('', max_steps=100)
+print(f"Empty: {reason.value}")  # ACCEPT
+
+accepted, reason, steps = tm.run('111', max_steps=1000)
+print(f"'111': {reason.value}")  # INFINITE_LOOP_DETECTED
+
+# Watch it live
+tm.run('111', max_steps=50, trace=True, delay=0.1)
+```
+
+### Trace Output Example
+```
+TURING MACHINE EXECUTION TRACE
+========================================
+Step    0
+State: q0          Head:   0
+Tape:  [1] 1 1
+δ(q0, 1) → (q1, X, R)
+
+Step    1
+State: q1          Head:   1
+Tape:  X [1] 1
+δ(q1, 1) → (q2, X, R)
+
+Step    2
+State: q2          Head:   2
+Tape:  X X [1]
+δ(q2, 1) → (q0, X, L)
+
+... (spiraling continues)
+
+⏱ MAX STEPS (50) exceeded - possible infinite loop
+
+Loop Analysis:
+Most Visited States
+╭────────┬────────╮
+│ State  │ Visits │
+├────────┼────────┤
+│ q0     │   17   │
+│ q1     │   16   │
+│ q2     │   16   │
+╰────────┴────────╯
+
+💡 Tip: Try running with --max-steps 100 to explore further
+```
+
+## 🧪 Testing Your Machines
+
+### Running Tests
+```bash
+# Run all tests
+pytest
+
+# Run specific exercise tests
+pytest -k "dfa_even_zeros"
+
+# Run with verbose output
+pytest -v --tb=short --color=yes
+
+# Stop on first failure (recommended for exercises)
+pytest -x --ff
+```
+
+### Test Output
+```
+📝 Exercise 1: Create a DFA that accepts strings with an even number of 0s
+
+test_automata.py::TestDFAExercises::test_student_dfa_even_zeros 
+✅ All 8 tests passed!
+
+📝 Exercise 6: Create a TM that adds 1 to a binary number
+
+test_automata.py::TestTuringMachineExercises::test_student_tm_binary_adder
+❌ FAILED: Input '111'
+   Expected: 1000
+   Got: 0111
+   Hint: Handle carry propagation correctly
+```
+
+## 📊 Visualization
+
+### Generate State Diagrams
+```bash
+# Create visual representation of your automaton
+automata visualize machine.json
+
+# Outputs: machine.png with GraphViz rendering
+```
+
+### Interactive Web UI
+```bash
+# Start web interface
+automata-web
+
+# Open http://localhost:5000
+```
+
+## 🛠️ CLI Commands
+
+### Core Commands
+```bash
+# Run a machine on input
+automata run machine.json "input" --trace --max-steps 1000
+
+# Create a new machine interactively
+automata create dfa --output my_dfa.json
+
+# Test a machine against test cases
+automata test machine.json tests.json
+
+# Visualize a machine
+automata visualize machine.json
+
+# Show example machines
+automata examples
+
+# Interactive undecidability demo
+automata undecidability
+```
+
+### Options
+- `--trace`: Show step-by-step execution
+- `--max-steps N`: Limit execution to N steps
+- `--delay N`: Add N second delay between trace steps
+- `--loop-detect`: Enable/disable loop detection
+- `--output FILE`: Specify output file
+
+## 📖 Theory Connections
+
+### Regular Languages (DFA/NFA)
+- Closure properties
+- Pumping lemma applications
+- Minimization algorithms
+- Regular expressions
+
+### Context-Free Languages
+- Pushdown automata (coming soon)
+- CFG to PDA conversion
+- CYK algorithm
+
+### Decidability
+- Halting problem
+- Rice's theorem
+- Recursive vs recursively enumerable
+- Reductions
+
+### Complexity
+- P vs NP
+- NP-completeness
+- Space complexity
+- Time hierarchies
 
 ## 🎓 Educational Usage
 
+### For Instructors
+1. **Assignments**: Use provided exercises as homework
+2. **Exams**: Generate random test cases
+3. **Demonstrations**: Show undecidability live in class
+4. **Projects**: Students implement advanced machines
+
 ### For Students
-1. **Progressive Learning**: Start with DFA, advance to quantum automata
-2. **Interactive Exploration**: Modify examples and observe behavior
-3. **Visual Feedback**: Watch step-by-step execution traces
-4. **Immediate Testing**: Verify understanding with comprehensive tests
+1. **Immediate Feedback**: Know instantly if your machine works
+2. **Visual Learning**: See exactly how machines process input
+3. **Exploration**: Experiment with limits of computation
+4. **Understanding**: Make abstract concepts concrete
 
-### For Instructors  
-1. **Lecture Integration**: Use notebooks for live demonstrations
-2. **Assignment Creation**: Modify examples for homework problems
-3. **Assessment Tools**: Automated testing of student implementations
-4. **Research Projects**: Extend library with new automata types
+## 🔗 Integration with Course
 
-## 🔬 Advanced Features
-
-### Execution Tracing
-- Step-by-step state transitions
-- Tape/stack content visualization  
-- Configuration history tracking
-- Loop detection algorithms
-
-### Error Handling
-- Graceful handling of invalid inputs
-- Timeout protection for infinite loops
-- Detailed error messages with hints
-- Robust parsing of configuration files
-
-### Performance Optimization
-- Efficient state space exploration
-- Memoization for repeated computations
-- Early termination conditions
-- Memory-conscious data structures
-
-## 🚀 Getting Started
-
-### Installation
+### Docker Support
 ```bash
-git clone <repository>
-cd automata-theory-project
-pip install -r requirements.txt
+# Build with course Docker image
+docker run -v $(pwd):/app scott-weeden/latex automata test
 ```
 
-### Quick Test
-```bash
-# Test all automata types
-python -m pytest tests/ -v
-
-# Launch web interface
-python src/web_playground.py
-
-# Run interactive CLI
-python src/cli.py interactive
+### Continuous Testing
+```yaml
+# GitHub Actions workflow
+name: Test Automata
+on: [push]
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - run: pip install -e .
+      - run: pytest
 ```
 
-### Example Usage
+## 🐛 Debugging Tips
+
+### Common Issues
+
+1. **DFA not complete**: Ensure transitions for all (state, symbol) pairs
+2. **NFA epsilon loops**: Check ε-closure computation
+3. **TM infinite loops**: Use `--max-steps` and `--trace`
+4. **Test failures**: Read hints in error messages
+
+### Debug Mode
 ```python
-from automata import DFA, PDA, QFA
+# Enable debug output
+import logging
+logging.basicConfig(level=logging.DEBUG)
 
-# Create and test a DFA
-dfa = DFA(states={'q0','q1'}, alphabet={'0','1'}, ...)
-print(dfa.accepts('0110'))
-
-# Explore quantum effects
-qfa = create_hadamard_qfa()
-prob = qfa.acceptance_probability('01')
+# Use trace in code
+dfa.accepts("input", trace=True)
 ```
 
-## 📚 Learning Path
+## 📚 Resources
 
-1. **Start**: `01_regular_languages.ipynb` - Master finite automata
-2. **Progress**: `02_cfg_pda.ipynb` - Understand context-free languages  
-3. **Advanced**: `03_turing_decidability.ipynb` - Explore limits of computation
-4. **Experiment**: Web playground - Interactive exploration
-5. **Extend**: Implement custom automata types
+- **Documentation**: https://automata-theory.readthedocs.io
+- **Course Materials**: See `/course-content`
+- **Video Tutorials**: YouTube playlist (coming soon)
+- **Discord**: Join our study group
 
 ## 🤝 Contributing
 
-- Add new automata variants
-- Expand test coverage
-- Create additional notebooks
-- Improve visualization tools
-- Enhance quantum algorithms
+We welcome contributions! See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
+
+### Areas for Contribution
+- More exercise templates
+- Visualization improvements
+- Performance optimizations
+- Documentation examples
+- Test case generators
 
 ## 📄 License
 
-MIT License - Educational use encouraged
+MIT License - See [LICENSE](LICENSE) for details.
+
+## 🙏 Acknowledgments
+
+- Inspired by Sipser's "Introduction to the Theory of Computation"
+- Built for CS Theory courses worldwide
+- Special thanks to students who tested early versions
+
+## 🚧 Roadmap
+
+### Coming Soon
+- [ ] Pushdown Automata (PDA)
+- [ ] Linear Bounded Automata
+- [ ] Quantum Automata
+- [ ] Interactive web playground
+- [ ] Video trace exports
+- [ ] Advanced complexity analysis
+- [ ] LLM integration for hints
+
+## 💡 Tips for Success
+
+1. **Start Small**: Build simple machines first
+2. **Test Often**: Use pytest after each change
+3. **Trace Execution**: Watch your machine run with `--trace`
+4. **Explore Limits**: Try inputs that might cause loops
+5. **Learn from Failures**: Red tests teach as much as green ones
 
 ---
 
-**"From the deterministic certainty of DFA to the quantum mysteries of QFA - explore the full spectrum of computational models!"** 🎭⚛️
+**Remember**: Every loop that spirals endlessly is a reminder that some questions have no algorithmic answer. Welcome to the beautiful world of theoretical computer science! 🎭
