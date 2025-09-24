@@ -1,8 +1,8 @@
 # API Reference – Intelligent Systems Project
 
-This reference summarises the core interfaces implemented in Phases 1 and 2 of
-the project.  These modules provide the reusable abstractions and utilities that
-later algorithms (search strategies, MDP solvers, reinforcement learning) build
+Phases 1–4 establish the reusable infrastructure and flagship algorithms for the
+project.  The modules below now include problem abstractions, heuristic helpers,
+search strategies, and adversarial agents that higher-level coursework builds
 upon.
 
 ---
@@ -12,7 +12,7 @@ upon.
 ### Problem Definitions
 
 #### `class SearchProblem`
-Base class describing the contract every search problem must implement.
+Abstract contract implemented by every domain-specific search problem.
 
 ```python
 class SearchProblem:
@@ -22,14 +22,8 @@ class SearchProblem:
     def get_cost_of_actions(self, actions: Sequence[Any]) -> float
 ```
 
-* `get_start_state()` – return the initial state.
-* `is_goal_state(state)` – true when `state` satisfies the goal condition.
-* `get_successors(state)` – iterable of `(successor, action, step_cost)` triples.
-* `get_cost_of_actions(actions)` – total path cost for a proposed action list
-  (defaults to unit cost per action and performs input validation).
-
 #### `@dataclass class GridSearchProblem(SearchProblem)`
-Concrete 4-connected grid world.
+Grid-based navigation with 4-directional movement.
 
 ```python
 GridSearchProblem(
@@ -39,49 +33,31 @@ GridSearchProblem(
 )
 ```
 
-* Accepts any rectangular grid; values equal to `1` or `'#'` are obstacles.
-* Validates that `start` and `goal` reside inside the grid and are traversable.
-* `get_successors(state)` returns legal neighbours with action names
-  `"North"`, `"South"`, `"West"`, `"East"` and unit step cost.
+* Square cells equal to `1` or `'#'` are blocked.
+* Validates rectangular shape plus accessible start/goal.
+* Successors return `(state, action, 1.0)` where actions are one of
+  `"UP"`, `"DOWN"`, `"LEFT"`, `"RIGHT"`.
 
 ### Tree Nodes and Queues
 
 #### `@dataclass class Node`
-Search tree node storing a state, optional parent/action, accumulated cost, and
-depth.  Convenience helpers expedite common algorithmic patterns.
+Immutable search tree node with parent linkage, accumulated path cost, and
+helpers for reconstructing solutions.
 
 ```python
-node.state      # state value
-node.parent     # parent Node or None
-node.action     # action from parent into this node
-node.path_cost  # cumulative g(n)
-node.depth      # depth in the tree (root = 0)
+node.state
+node.parent
+node.action
+node.path_cost
+node.depth
 
-node.expand(problem)    -> List[Node]
-node.solution()         -> List[Any]   # actions from root to node
-node.path()             -> List[Any]   # states from root to node
+node.solution() -> List[Any]
+node.path()     -> List[Any]
 ```
-
-`Node` comparisons order by `path_cost`, allowing use inside priority queues.
 
 #### `class PriorityQueue`
-Heap-backed priority queue compatible with the Berkeley Pac-Man projects.
-
-```python
-PriorityQueue(order: Literal['min','max'] = 'min', f: Callable[[Any], float] = lambda x: x)
-
-pq.append(item)
-pq.extend(iterable)
-pq.pop() -> item
-len(pq) -> int
-
-key in pq           # membership check
-pq[key]             # retrieve matching item
-del pq[key]         # delete matching item
-```
-
-Membership tests understand common patterns (tuples like `(priority, state)` or
-objects exposing a `state` attribute) so queues remain ergonomic in search code.
+Heap-backed queue supporting membership tests and keyed deletion—compatible with
+the Berkeley Pac-Man infrastructure.
 
 ### Heuristics
 
@@ -93,16 +69,26 @@ null_heuristic(state, problem=None) -> float
 ```
 
 #### `class GridHeuristic`
-Callable wrapper that selects the appropriate distance metric for grid-based
-problems.
+Callable that selects the right metric for grid domains:
+`'4-way'` → Manhattan, `'8-way'` → Chebyshev, `'continuous'` → Euclidean.
 
-```python
-GridHeuristic(goal, movement_type='4-way')(state, problem=None) -> float
-```
+### Algorithms
 
-* `'4-way'` → Manhattan distance
-* `'8-way'` → Chebyshev distance
-* `'continuous'` → Euclidean distance
+Each agent stores `nodes_expanded` for instrumentation and exposes
+`search(problem) -> Optional[List[Any]]`.
+
+* `BreadthFirstSearch()` – complete and optimal for uniform step costs; explores
+  level by level using a FIFO frontier.
+* `DepthFirstSearch()` – space efficient depth-first tree search; may cycle on
+  infinite graphs but prunes repeated states along the current path.
+* `UniformCostSearch()` – Dijkstra-style search that minimises cumulative cost
+  for strictly positive step costs.
+* `AStarSearch(heuristic)` – best-first search ordered by `g + h`; optimal with
+  admissible, consistent heuristics.
+* `GreedyBestFirstSearch(heuristic)` – heuristic-only ordering (fast, not
+  optimal).
+* `IterativeDeepeningSearch()` – depth-first search with increasing depth limits
+  that retains BFS optimality while using linear space.
 
 ---
 
@@ -111,7 +97,7 @@ GridHeuristic(goal, movement_type='4-way')(state, problem=None) -> float
 ### Core Abstractions
 
 #### `class GameState`
-Abstract interface required by adversarial search algorithms.
+Interface implemented by deterministic, perfect-information games.
 
 ```python
 class GameState:
@@ -122,59 +108,29 @@ class GameState:
 ```
 
 #### `class GameAgent`
-Base class providing the `index` of the controlled player and a
-`nodes_explored` counter for instrumentation.
-
-```python
-class GameAgent:
-    index: int
-    nodes_explored: int
-    def reset_statistics(self) -> None
-    def get_action(self, game_state: GameState): ...
-```
+Stores the controlled player index plus `nodes_explored`; `reset_statistics()`
+resets counters before each search.
 
 #### `class Game`
-Lightweight wrapper used by demo applications.
-
-```python
-class Game:
-    def actions(self, state: GameState) -> Sequence[Any]
-    def result(self, state: GameState, action: Any) -> GameState
-    def terminal_test(self, state: GameState) -> bool
-    def utility(self, state: GameState, player: int) -> float
-    def to_move(self, state: GameState) -> int
-```
+Wrapper used in demos with methods `actions`, `result`, `terminal_test`,
+`utility`, and `to_move`.
 
 ### Tic-Tac-Toe Reference Implementation
 
-#### `@dataclass class TicTacToeState(GameState)`
-Immutable 3×3 board representation.
-
-* `board`: tuple of tuples holding `'X'`, `'O'`, or `' '`.
-* `to_move`: `'X'` or `'O'` indicating whose turn it is.
-* `last_move`: optional `(row, col)` of the move that produced this state.
-* Provides concrete implementations of all `GameState` methods.
-
-#### `class TicTacToe(Game)`
-Exposes the Tic-Tac-Toe domain through the `Game` interface.
-
-* `initial`: starting `TicTacToeState` with an empty board.
-* `actions(state)` delegates to `state.get_legal_actions`.
-* `result(state, action)` validates the move and returns a new state.
-* `utility(state, player)` forwards to the state's utility function.
+* `TicTacToeState` – immutable board state tracking last move and active player.
+* `TicTacToe` – wires the state into the `Game` interface for sample
+  applications and tests.
 
 ### Search-Based Agents
 
-The minimax family of agents operate on any `GameState` implementation.
+* `MinimaxAgent(index: int = 0, depth: int = 2)` – optimal two-player search.
+* `AlphaBetaAgent(index: int = 0, depth: int = 2)` – minimax with pruning that
+  reduces node expansions when move ordering is favourable.
+* `ExpectimaxAgent(index: int = 0, depth: int = 2)` – models non-deterministic
+  opponents via expectation instead of minimisation.
 
-* `MinimaxAgent(index: int = 0, depth: int = 2)` – deterministic optimal play.
-* `AlphaBetaAgent(index: int = 0, depth: int = 2)` – minimax with alpha-beta
-  pruning for improved efficiency.
-* `ExpectimaxAgent(index: int = 0, depth: int = 2)` – handles chance/opponent
-  randomness via expectation instead of minimisation.
-
-All agents expose `get_action(game_state)` and maintain `nodes_explored` for
-profiling.
+All agents invoke `reset_statistics()` at the start of `get_action()` and can be
+used directly with `GameState` subclasses without additional wrappers.
 
 ---
 
@@ -182,7 +138,7 @@ profiling.
 
 ### Solving a Grid Pathfinding Task
 ```python
-from src.search import GridSearchProblem, BreadthFirstSearch, manhattan_distance
+from src.search import GridSearchProblem, BreadthFirstSearch
 
 problem = GridSearchProblem(
     grid=[
@@ -210,7 +166,6 @@ state = game.initial
 while not game.terminal_test(state):
     action = agent.get_action(state)
     state = game.result(state, action)
-    # Here you could alternate with a human or another agent
 
 print("Utility for X:", game.utility(state, player=0))
 ```

@@ -96,10 +96,10 @@ class GridSearchProblem(SearchProblem):
 
     # Movement deltas paired with canonical action names.
     _MOVES: Tuple[Tuple[str, Tuple[int, int]], ...] = (
-        ("North", (-1, 0)),
-        ("South", (1, 0)),
-        ("West", (0, -1)),
-        ("East", (0, 1)),
+        ('UP', (-1, 0)),
+        ('DOWN', (1, 0)),
+        ('LEFT', (0, -1)),
+        ('RIGHT', (0, 1)),
     )
 
     def _in_bounds(self, position: Tuple[int, int]) -> bool:
