@@ -9,8 +9,24 @@ A comprehensive Python library for learning and experimenting with automata theo
 ### Core Automata Types
 - **DFA** (Deterministic Finite Automaton)
 - **NFA** (Non-deterministic Finite Automaton with ε-transitions)
+- **PDA** (Pushdown Automaton) - **NEW!** ✨
+- **LBA** (Linear Bounded Automaton) - **NEW!** ✨
 - **Turing Machines** with loop detection and step limits
 - **Universal Turing Machine** (UTM) simulator
+- **Quantum Finite Automata** (QFA) - **NEW!** ✨
+
+### Advanced Quantum Features ⚛️
+- **Measure-once QFA** with quantum superposition
+- **Reversible QFA** with unitary evolution
+- **Quantum interference** and amplitude manipulation
+- **Probabilistic acceptance** with configurable thresholds
+
+### Interactive Web Playground 🌐
+- **Real-time testing** of all automata types
+- **Visual state diagrams** with GraphViz integration
+- **Step-by-step execution traces**
+- **Example library** with common patterns
+- **Multi-tab interface** for different automata
 
 ### Visceral Undecidability
 - `--trace` flag to watch execution step-by-step
@@ -63,7 +79,76 @@ print(dfa.accepts('0011'))  # True (two 0s)
 print(dfa.accepts('000'))   # False (three 0s)
 ```
 
-### 2. Watch a Turing Machine Loop
+### 2. Build a Pushdown Automaton
+```python
+from automata_lib import PDA
+
+# PDA for balanced parentheses
+pda = PDA(
+    states={'q0', 'q1'},
+    alphabet={'(', ')'},
+    stack_alphabet={'Z', 'P'},
+    transitions={
+        ('q0', '(', 'Z'): {('q0', 'PZ')},
+        ('q0', '(', 'P'): {('q0', 'PP')},
+        ('q0', ')', 'P'): {('q0', '')},
+        ('q0', '', 'Z'): {('q1', 'Z')}
+    },
+    start_state='q0',
+    accept_states={'q1'}
+)
+
+print(pda.accepts('((()))'))  # True
+print(pda.accepts('(()'))     # False
+```
+
+### 3. Explore Quantum Computing
+```python
+from automata_lib import create_hadamard_qfa
+
+# Quantum automaton with superposition
+qfa = create_hadamard_qfa()
+
+# Get acceptance probability
+prob = qfa.acceptance_probability('01')
+print(f"Acceptance probability: {prob}")
+
+# Trace quantum state evolution
+prob, trace = qfa.run_with_trace('01')
+for step in trace:
+    print(f"Step {step['step']}: {step['probabilities']}")
+```
+
+### 4. Test Context-Sensitive Languages
+```python
+from automata_lib import LBA
+
+# Linear Bounded Automaton
+lba = LBA(
+    states={'q0', 'q1', 'q2'},
+    alphabet={'a', 'b'},
+    tape_alphabet={'a', 'b', 'X', '⊢', '⊣'},
+    transitions={
+        ('q0', 'a'): ('q1', 'X', 'R'),
+        ('q1', 'b'): ('q2', 'X', 'L')
+    },
+    start_state='q0',
+    accept_states={'q2'}
+)
+
+result, steps, trace = lba.run('ab', trace=True)
+print(f"Result: {result}, Steps: {steps}")
+```
+
+### 5. Launch Interactive Web Playground
+```bash
+# Start web interface
+python -m automata_lib.web_playground
+
+# Open http://localhost:5000
+```
+
+### 6. Watch a Turing Machine Loop
 ```bash
 # Create an infinite loop demonstration
 automata undecidability
@@ -75,18 +160,100 @@ automata run undecidable.tm.json '111' --trace --max-steps 50
 automata run undecidable.tm.json '111' --trace --loop-detect
 ```
 
-### 3. Get Instant Test Feedback
+### 7. Get Instant Test Feedback
 ```bash
 # Run tests on your implementation
 pytest test_automata.py -v --tb=short
 
 # Watch for red/green feedback
-✅ test_student_dfa_even_zeros PASSED
-❌ test_student_dfa_divisible_by_3 FAILED
-   Expected: True for input '11'
-   Got: False
-   Hint: Binary 11 is decimal 3
+✅ test_student_pda_balanced_parens PASSED
+✅ test_student_lba_copy_language PASSED
+✅ test_student_qfa_superposition PASSED
+❌ test_student_qfa_interference FAILED
+   Expected: 0.0 for quantum interference
+   Got: 0.25
+   Hint: Check negative amplitude cancellation
 ```
+
+## 🧪 New Automata Types
+
+### Pushdown Automata (PDA)
+```python
+# Context-free language: a^n b^n
+pda = PDA(
+    states={'q0', 'q1', 'q2'},
+    alphabet={'a', 'b'},
+    stack_alphabet={'Z', 'A'},
+    transitions={
+        ('q0', 'a', 'Z'): {('q0', 'AZ')},
+        ('q0', 'a', 'A'): {('q0', 'AA')},
+        ('q0', 'b', 'A'): {('q1', '')},
+        ('q1', 'b', 'A'): {('q1', '')},
+        ('q1', '', 'Z'): {('q2', 'Z')}
+    },
+    start_state='q0',
+    accept_states={'q2'}
+)
+```
+
+### Linear Bounded Automata (LBA)
+```python
+# Context-sensitive language: a^n b^n c^n
+lba = LBA(
+    states={'q0', 'q1', 'q2', 'q3'},
+    alphabet={'a', 'b', 'c'},
+    tape_alphabet={'a', 'b', 'c', 'X', 'Y', 'Z', '⊢', '⊣'},
+    transitions={
+        ('q0', 'a'): ('q1', 'X', 'R'),
+        ('q1', 'b'): ('q2', 'Y', 'R'),
+        ('q2', 'c'): ('q3', 'Z', 'L'),
+        # ... more transitions for full implementation
+    },
+    start_state='q0',
+    accept_states={'q3'}
+)
+```
+
+### Quantum Finite Automata (QFA)
+```python
+import math
+
+# Quantum superposition
+h = 1/math.sqrt(2)
+qfa = QFA(
+    states={'q0', 'q1'},
+    alphabet={'0', '1'},
+    transitions={
+        ('q0', '0'): [('q0', h), ('q1', h)],
+        ('q0', '1'): [('q0', h), ('q1', -h)],
+        ('q1', '0'): [('q0', h), ('q1', -h)],
+        ('q1', '1'): [('q0', -h), ('q1', h)]
+    },
+    start_state='q0',
+    accept_states={'q1'},
+    threshold=0.5
+)
+
+# Quantum interference
+prob = qfa.acceptance_probability('01')  # May be 0 due to interference!
+```
+
+## 🌐 Interactive Web Playground
+
+Launch the web interface to test automata visually:
+
+```bash
+cd automata-theory-project/src
+python web_playground.py
+```
+
+Features:
+- **Multi-tab interface** for different automata types
+- **Real-time testing** with immediate feedback
+- **GraphViz visualization** generation
+- **Example library** with common patterns
+- **Execution tracing** for debugging
+- **Quantum state visualization** for QFA
 
 ## 📚 Student Exercises
 
@@ -95,253 +262,202 @@ pytest test_automata.py -v --tb=short
 student_solutions/
 ├── dfa_even_zeros.json       # Exercise 1
 ├── dfa_divisible_3.json      # Exercise 2
-├── dfa_no_consecutive_ones.json  # Exercise 3
-├── nfa_ends_01.json          # Exercise 4
-├── nfa_contains_101.json     # Exercise 5
-├── tm_binary_increment.json  # Exercise 6
-├── tm_palindrome.json        # Exercise 7
-└── tm_loop_demo.json         # Exercise 8
+├── nfa_ends_01.json          # Exercise 3
+├── pda_balanced_parens.json  # Exercise 4 - NEW!
+├── pda_copy_language.json    # Exercise 5 - NEW!
+├── lba_palindromes.json      # Exercise 6 - NEW!
+├── qfa_superposition.json    # Exercise 7 - NEW!
+├── tm_binary_increment.json  # Exercise 8
+└── tm_loop_demo.json         # Exercise 9
 ```
 
-### Example Exercise File
+### New PDA Exercise
 ```json
 {
-  "type": "DFA",
-  "states": ["q0", "q1"],
-  "alphabet": ["0", "1"],
+  "type": "PDA",
+  "states": ["q0", "q1", "q2"],
+  "alphabet": ["a", "b"],
+  "stack_alphabet": ["Z", "A"],
   "transitions": {
-    "q0,0": "q1",
-    "q0,1": "q0",
-    "q1,0": "q0",
-    "q1,1": "q1"
+    "('q0', 'a', 'Z')": [["q0", "AZ"]],
+    "('q0', 'a', 'A')": [["q0", "AA"]],
+    "('q0', 'b', 'A')": [["q1", ""]],
+    "('q1', 'b', 'A')": [["q1", ""]],
+    "('q1', '', 'Z')": [["q2", "Z"]]
   },
   "start_state": "q0",
-  "accept_states": ["q0"]
+  "accept_states": ["q2"]
 }
 ```
 
-## 🔬 Exploring Undecidability
+## 🔬 Exploring Advanced Topics
 
-### The Halting Problem Made Real
+### Quantum Computing Concepts
 ```python
-from automata_lib import TuringMachine, HaltReason
+from automata_lib import ReversibleQFA
 
-# Create a TM that might not halt
-tm = create_infinite_loop_tm()
+# Unitary evolution with Hadamard gates
+hadamard = [[1/√2, 1/√2], [1/√2, -1/√2]]
 
-# Run with different inputs
-accepted, reason, steps = tm.run('', max_steps=100)
-print(f"Empty: {reason.value}")  # ACCEPT
+rqfa = ReversibleQFA(
+    states={'q0', 'q1'},
+    alphabet={'H'},
+    unitary_transitions={'H': hadamard},
+    start_state='q0',
+    accept_states={'q1'}
+)
 
-accepted, reason, steps = tm.run('111', max_steps=1000)
-print(f"'111': {reason.value}")  # INFINITE_LOOP_DETECTED
-
-# Watch it live
-tm.run('111', max_steps=50, trace=True, delay=0.1)
+# Two Hadamards return to original state
+prob = rqfa.acceptance_probability('HH')  # Should be 0
 ```
 
-### Trace Output Example
-```
-TURING MACHINE EXECUTION TRACE
-========================================
-Step    0
-State: q0          Head:   0
-Tape:  [1] 1 1
-δ(q0, 1) → (q1, X, R)
-
-Step    1
-State: q1          Head:   1
-Tape:  X [1] 1
-δ(q1, 1) → (q2, X, R)
-
-Step    2
-State: q2          Head:   2
-Tape:  X X [1]
-δ(q2, 1) → (q0, X, L)
-
-... (spiraling continues)
-
-⏱ MAX STEPS (50) exceeded - possible infinite loop
-
-Loop Analysis:
-Most Visited States
-╭────────┬────────╮
-│ State  │ Visits │
-├────────┼────────┤
-│ q0     │   17   │
-│ q1     │   16   │
-│ q2     │   16   │
-╰────────┴────────╯
-
-💡 Tip: Try running with --max-steps 100 to explore further
+### Context-Sensitive Languages
+```python
+# LBA for {ww | w ∈ {a,b}*}
+lba_copy = LBA(
+    states={'q0', 'q1', 'q2', 'q3'},
+    alphabet={'a', 'b'},
+    tape_alphabet={'a', 'b', 'X', 'Y', '⊢', '⊣'},
+    transitions={
+        # Mark and compare symbols
+        ('q0', 'a'): ('q1', 'X', 'R'),
+        ('q0', 'b'): ('q2', 'Y', 'R'),
+        # ... implementation for copy language
+    },
+    start_state='q0',
+    accept_states={'q3'}
+)
 ```
 
-## 🧪 Testing Your Machines
+### Undecidability Demonstrations
+```python
+# Halting problem visualization
+tm_halt = create_halting_problem_tm()
 
-### Running Tests
-```bash
-# Run all tests
-pytest
+# Watch it loop infinitely
+result, reason, steps = tm_halt.run('', max_steps=100, trace=True)
+print(f"Reason: {reason.value}")  # INFINITE_LOOP_DETECTED
 
-# Run specific exercise tests
-pytest -k "dfa_even_zeros"
-
-# Run with verbose output
-pytest -v --tb=short --color=yes
-
-# Stop on first failure (recommended for exercises)
-pytest -x --ff
+# Visualize the spiral
+tm_halt.visualize_execution('', max_steps=50, animate=True)
 ```
 
-### Test Output
-```
-📝 Exercise 1: Create a DFA that accepts strings with an even number of 0s
-
-test_automata.py::TestDFAExercises::test_student_dfa_even_zeros 
-✅ All 8 tests passed!
-
-📝 Exercise 6: Create a TM that adds 1 to a binary number
-
-test_automata.py::TestTuringMachineExercises::test_student_tm_binary_adder
-❌ FAILED: Input '111'
-   Expected: 1000
-   Got: 0111
-   Hint: Handle carry propagation correctly
-```
-
-## 📊 Visualization
-
-### Generate State Diagrams
-```bash
-# Create visual representation of your automaton
-automata visualize machine.json
-
-# Outputs: machine.png with GraphViz rendering
-```
-
-### Interactive Web UI
-```bash
-# Start web interface
-automata-web
-
-# Open http://localhost:5000
-```
-
-## 🛠️ CLI Commands
+## 🛠️ Enhanced CLI Commands
 
 ### Core Commands
 ```bash
-# Run a machine on input
-automata run machine.json "input" --trace --max-steps 1000
+# Test any automaton type
+automata test pda config.json "(())" --trace
+automata test lba config.json "aabbcc" --max-steps 1000
+automata test qfa config.json "01" --trace
 
-# Create a new machine interactively
-automata create dfa --output my_dfa.json
+# Interactive web playground
+automata web --port 8080
 
-# Test a machine against test cases
-automata test machine.json tests.json
+# Generate examples
+automata examples pda
+automata examples qfa
 
-# Visualize a machine
-automata visualize machine.json
-
-# Show example machines
-automata examples
-
-# Interactive undecidability demo
-automata undecidability
+# Visualize automata
+automata visualize dfa config.json --output diagram.png
 ```
 
-### Options
-- `--trace`: Show step-by-step execution
-- `--max-steps N`: Limit execution to N steps
-- `--delay N`: Add N second delay between trace steps
-- `--loop-detect`: Enable/disable loop detection
-- `--output FILE`: Specify output file
+### New Options
+- `--quantum-trace`: Show quantum state evolution
+- `--stack-trace`: Show PDA stack operations
+- `--tape-trace`: Show LBA tape modifications
+- `--probability`: Show QFA acceptance probabilities
 
-## 📖 Theory Connections
+## 📊 Advanced Visualization
 
-### Regular Languages (DFA/NFA)
-- Closure properties
-- Pumping lemma applications
-- Minimization algorithms
-- Regular expressions
+### Quantum State Evolution
+```python
+qfa = create_hadamard_qfa()
+prob, trace = qfa.run_with_trace('010')
 
-### Context-Free Languages
-- Pushdown automata (coming soon)
-- CFG to PDA conversion
-- CYK algorithm
+# Visualize quantum amplitudes
+import matplotlib.pyplot as plt
+steps = [t['step'] for t in trace]
+probs = [t['probabilities'] for t in trace]
 
-### Decidability
-- Halting problem
-- Rice's theorem
-- Recursive vs recursively enumerable
-- Reductions
+plt.plot(steps, probs)
+plt.title('Quantum State Evolution')
+plt.show()
+```
 
-### Complexity
-- P vs NP
-- NP-completeness
-- Space complexity
-- Time hierarchies
+### PDA Stack Visualization
+```python
+pda = create_balanced_parens_pda()
+result, trace = pda.run_with_trace('((()))')
+
+for step in trace:
+    print(f"Stack: {step['stack']}, Input: {step['remaining_input']}")
+```
 
 ## 🎓 Educational Usage
 
 ### For Instructors
-1. **Assignments**: Use provided exercises as homework
-2. **Exams**: Generate random test cases
-3. **Demonstrations**: Show undecidability live in class
-4. **Projects**: Students implement advanced machines
+1. **Advanced Assignments**: PDA, LBA, and QFA exercises
+2. **Quantum Computing**: Introduction through QFA
+3. **Context-Sensitive Languages**: LBA demonstrations
+4. **Interactive Lectures**: Web playground for live demos
 
 ### For Students
-1. **Immediate Feedback**: Know instantly if your machine works
-2. **Visual Learning**: See exactly how machines process input
-3. **Exploration**: Experiment with limits of computation
-4. **Understanding**: Make abstract concepts concrete
+1. **Gradual Complexity**: From DFA to Quantum Automata
+2. **Visual Learning**: See stack operations and quantum states
+3. **Immediate Feedback**: Know instantly if implementations work
+4. **Research Projects**: Implement custom quantum algorithms
 
 ## 🔗 Integration with Course
 
 ### Docker Support
 ```bash
-# Build with course Docker image
-docker run -v $(pwd):/app scott-weeden/latex automata test
+# Build with enhanced course Docker image
+docker run -v $(pwd):/app scott-weeden/latex automata test pda
 ```
 
 ### Continuous Testing
 ```yaml
-# GitHub Actions workflow
-name: Test Automata
+# Enhanced GitHub Actions workflow
+name: Test All Automata
 on: [push]
 jobs:
   test:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
-      - run: pip install -e .
-      - run: pytest
+      - run: pip install -e ".[quantum]"
+      - run: pytest tests/ -v
+      - run: python -m automata_lib.cli examples
 ```
 
 ## 🐛 Debugging Tips
 
 ### Common Issues
 
-1. **DFA not complete**: Ensure transitions for all (state, symbol) pairs
-2. **NFA epsilon loops**: Check ε-closure computation
-3. **TM infinite loops**: Use `--max-steps` and `--trace`
-4. **Test failures**: Read hints in error messages
+1. **PDA stack operations**: Check push/pop order and epsilon transitions
+2. **LBA tape boundaries**: Ensure proper marker handling
+3. **QFA normalization**: Verify amplitude conservation
+4. **Quantum interference**: Check for negative amplitude cancellation
 
 ### Debug Mode
 ```python
-# Enable debug output
+# Enable comprehensive debugging
 import logging
 logging.basicConfig(level=logging.DEBUG)
 
-# Use trace in code
-dfa.accepts("input", trace=True)
+# Trace all operations
+pda.accepts("input", trace=True, debug=True)
+lba.run("input", trace=True, max_steps=100)
+qfa.run_with_trace("input")
 ```
 
 ## 📚 Resources
 
 - **Documentation**: https://automata-theory.readthedocs.io
 - **Course Materials**: See `/course-content`
-- **Video Tutorials**: YouTube playlist (coming soon)
+- **Quantum Computing**: Introduction via QFA
+- **Video Tutorials**: YouTube playlist with quantum examples
 - **Discord**: Join our study group
 
 ## 🤝 Contributing
@@ -349,11 +465,11 @@ dfa.accepts("input", trace=True)
 We welcome contributions! See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
 
 ### Areas for Contribution
-- More exercise templates
-- Visualization improvements
-- Performance optimizations
-- Documentation examples
-- Test case generators
+- More quantum algorithms (Grover, Shor concepts)
+- Advanced LBA examples
+- PDA optimization algorithms
+- Web playground enhancements
+- Quantum visualization tools
 
 ## 📄 License
 
@@ -362,28 +478,38 @@ MIT License - See [LICENSE](LICENSE) for details.
 ## 🙏 Acknowledgments
 
 - Inspired by Sipser's "Introduction to the Theory of Computation"
+- Quantum computing concepts from Nielsen & Chuang
 - Built for CS Theory courses worldwide
-- Special thanks to students who tested early versions
+- Special thanks to students who tested quantum features
 
 ## 🚧 Roadmap
 
+### Recently Added ✅
+- [x] Pushdown Automata (PDA)
+- [x] Linear Bounded Automata (LBA)
+- [x] Quantum Finite Automata (QFA)
+- [x] Interactive web playground
+- [x] Advanced CLI commands
+- [x] Comprehensive test suites
+
 ### Coming Soon
-- [ ] Pushdown Automata (PDA)
-- [ ] Linear Bounded Automata
-- [ ] Quantum Automata
-- [ ] Interactive web playground
-- [ ] Video trace exports
-- [ ] Advanced complexity analysis
+- [ ] Quantum Turing Machines
+- [ ] Probabilistic Automata
+- [ ] Tree Automata
+- [ ] Timed Automata
+- [ ] Advanced quantum algorithms
+- [ ] VR/AR visualization
 - [ ] LLM integration for hints
 
 ## 💡 Tips for Success
 
-1. **Start Small**: Build simple machines first
-2. **Test Often**: Use pytest after each change
-3. **Trace Execution**: Watch your machine run with `--trace`
-4. **Explore Limits**: Try inputs that might cause loops
-5. **Learn from Failures**: Red tests teach as much as green ones
+1. **Start Simple**: Master DFA before quantum automata
+2. **Test Often**: Use pytest after each implementation
+3. **Trace Everything**: Watch executions with `--trace`
+4. **Explore Quantum**: Understand superposition and interference
+5. **Use Web Playground**: Visual feedback accelerates learning
+6. **Study Examples**: Learn from provided implementations
 
 ---
 
-**Remember**: Every loop that spirals endlessly is a reminder that some questions have no algorithmic answer. Welcome to the beautiful world of theoretical computer science! 🎭
+**Remember**: From the deterministic certainty of DFA to the probabilistic mysteries of quantum automata, every computation tells a story. Welcome to the expanded universe of theoretical computer science! 🎭⚛️

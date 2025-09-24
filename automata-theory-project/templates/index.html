@@ -1,0 +1,321 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Automata Theory Playground</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; background: #f5f5f5; }
+        .container { max-width: 1200px; margin: 0 auto; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+        .header { text-align: center; margin-bottom: 30px; }
+        .controls { display: flex; gap: 20px; margin-bottom: 20px; flex-wrap: wrap; }
+        .control-group { flex: 1; min-width: 200px; }
+        label { display: block; margin-bottom: 5px; font-weight: bold; }
+        select, input, textarea { width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; }
+        button { background: #007bff; color: white; padding: 10px 20px; border: none; border-radius: 4px; cursor: pointer; }
+        button:hover { background: #0056b3; }
+        .results { margin-top: 20px; padding: 15px; border-radius: 4px; }
+        .success { background: #d4edda; border: 1px solid #c3e6cb; color: #155724; }
+        .error { background: #f8d7da; border: 1px solid #f5c6cb; color: #721c24; }
+        .trace { margin-top: 10px; font-family: monospace; background: #f8f9fa; padding: 10px; border-radius: 4px; }
+        .examples { margin-top: 20px; }
+        .example-btn { background: #28a745; margin: 5px; }
+        .example-btn:hover { background: #218838; }
+        .visualization { margin-top: 20px; text-align: center; }
+        .tabs { display: flex; margin-bottom: 20px; }
+        .tab { padding: 10px 20px; background: #e9ecef; border: 1px solid #ddd; cursor: pointer; }
+        .tab.active { background: #007bff; color: white; }
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🤖 Automata Theory Playground</h1>
+            <p>Interactive environment for testing and visualizing automata</p>
+        </div>
+
+        <div class="tabs">
+            <div class="tab active" onclick="showTab('dfa')">DFA</div>
+            <div class="tab" onclick="showTab('nfa')">NFA</div>
+            <div class="tab" onclick="showTab('pda')">PDA</div>
+            <div class="tab" onclick="showTab('tm')">Turing Machine</div>
+            <div class="tab" onclick="showTab('lba')">LBA</div>
+            <div class="tab" onclick="showTab('qfa')">Quantum FA</div>
+        </div>
+
+        <div id="dfa" class="tab-content active">
+            <h3>Deterministic Finite Automaton</h3>
+            <div class="controls">
+                <div class="control-group">
+                    <label>States (comma-separated):</label>
+                    <input type="text" id="dfa-states" value="q0,q1" placeholder="q0,q1,q2">
+                </div>
+                <div class="control-group">
+                    <label>Alphabet (comma-separated):</label>
+                    <input type="text" id="dfa-alphabet" value="0,1" placeholder="0,1">
+                </div>
+                <div class="control-group">
+                    <label>Start State:</label>
+                    <input type="text" id="dfa-start" value="q0" placeholder="q0">
+                </div>
+                <div class="control-group">
+                    <label>Accept States (comma-separated):</label>
+                    <input type="text" id="dfa-accept" value="q0" placeholder="q0,q2">
+                </div>
+            </div>
+            <div class="control-group">
+                <label>Transitions (JSON format):</label>
+                <textarea id="dfa-transitions" rows="4">{"q0,0": "q1", "q0,1": "q0", "q1,0": "q0", "q1,1": "q1"}</textarea>
+            </div>
+            <div class="control-group">
+                <label>Test String:</label>
+                <input type="text" id="dfa-test" placeholder="0110">
+                <button onclick="testAutomaton('DFA')">Test</button>
+                <button onclick="visualizeAutomaton('DFA')">Visualize</button>
+            </div>
+        </div>
+
+        <div id="nfa" class="tab-content">
+            <h3>Non-deterministic Finite Automaton</h3>
+            <div class="controls">
+                <div class="control-group">
+                    <label>States (comma-separated):</label>
+                    <input type="text" id="nfa-states" value="q0,q1,q2" placeholder="q0,q1,q2">
+                </div>
+                <div class="control-group">
+                    <label>Alphabet (comma-separated):</label>
+                    <input type="text" id="nfa-alphabet" value="0,1" placeholder="0,1">
+                </div>
+                <div class="control-group">
+                    <label>Start State:</label>
+                    <input type="text" id="nfa-start" value="q0" placeholder="q0">
+                </div>
+                <div class="control-group">
+                    <label>Accept States (comma-separated):</label>
+                    <input type="text" id="nfa-accept" value="q2" placeholder="q2">
+                </div>
+            </div>
+            <div class="control-group">
+                <label>Transitions (JSON format):</label>
+                <textarea id="nfa-transitions" rows="4">{"q0,0": ["q0", "q1"], "q0,1": ["q0"], "q1,1": ["q2"]}</textarea>
+            </div>
+            <div class="control-group">
+                <label>Test String:</label>
+                <input type="text" id="nfa-test" placeholder="001">
+                <button onclick="testAutomaton('NFA')">Test</button>
+                <button onclick="visualizeAutomaton('NFA')">Visualize</button>
+            </div>
+        </div>
+
+        <div id="pda" class="tab-content">
+            <h3>Pushdown Automaton</h3>
+            <div class="controls">
+                <div class="control-group">
+                    <label>States (comma-separated):</label>
+                    <input type="text" id="pda-states" value="q0,q1" placeholder="q0,q1">
+                </div>
+                <div class="control-group">
+                    <label>Alphabet (comma-separated):</label>
+                    <input type="text" id="pda-alphabet" value="(,)" placeholder="(,)">
+                </div>
+                <div class="control-group">
+                    <label>Stack Alphabet (comma-separated):</label>
+                    <input type="text" id="pda-stack-alphabet" value="Z,P" placeholder="Z,A,B">
+                </div>
+            </div>
+            <div class="controls">
+                <div class="control-group">
+                    <label>Start State:</label>
+                    <input type="text" id="pda-start" value="q0" placeholder="q0">
+                </div>
+                <div class="control-group">
+                    <label>Accept States (comma-separated):</label>
+                    <input type="text" id="pda-accept" value="q1" placeholder="q1">
+                </div>
+            </div>
+            <div class="control-group">
+                <label>Transitions (Complex JSON format):</label>
+                <textarea id="pda-transitions" rows="6">[["q0", "(", "Z", "q0", "PZ"], ["q0", "(", "P", "q0", "PP"], ["q0", ")", "P", "q0", ""], ["q0", "", "Z", "q1", "Z"]]</textarea>
+            </div>
+            <div class="control-group">
+                <label>Test String:</label>
+                <input type="text" id="pda-test" placeholder="(())">
+                <button onclick="testAutomaton('PDA')">Test</button>
+            </div>
+        </div>
+
+        <div id="tm" class="tab-content">
+            <h3>Turing Machine</h3>
+            <p>Turing Machine implementation with trace support</p>
+            <div class="control-group">
+                <label>Test String:</label>
+                <input type="text" id="tm-test" placeholder="101">
+                <button onclick="testAutomaton('TM')">Test</button>
+            </div>
+        </div>
+
+        <div id="lba" class="tab-content">
+            <h3>Linear Bounded Automaton</h3>
+            <p>Linear Bounded Automaton with bounded tape</p>
+            <div class="control-group">
+                <label>Test String:</label>
+                <input type="text" id="lba-test" placeholder="aabb">
+                <button onclick="testAutomaton('LBA')">Test</button>
+            </div>
+        </div>
+
+        <div id="qfa" class="tab-content">
+            <h3>Quantum Finite Automaton</h3>
+            <p>Quantum automaton with probabilistic acceptance</p>
+            <div class="control-group">
+                <label>Test String:</label>
+                <input type="text" id="qfa-test" placeholder="01">
+                <button onclick="testAutomaton('QFA')">Test</button>
+            </div>
+        </div>
+
+        <div class="examples">
+            <h3>Examples</h3>
+            <button class="example-btn" onclick="loadExample('DFA', 'even_zeros')">DFA: Even Zeros</button>
+            <button class="example-btn" onclick="loadExample('NFA', 'ends_01')">NFA: Ends with 01</button>
+            <button class="example-btn" onclick="loadExample('PDA', 'balanced_parens')">PDA: Balanced Parentheses</button>
+        </div>
+
+        <div id="results"></div>
+        <div id="visualization" class="visualization"></div>
+    </div>
+
+    <script>
+        function showTab(tabName) {
+            // Hide all tab contents
+            document.querySelectorAll('.tab-content').forEach(content => {
+                content.classList.remove('active');
+            });
+            
+            // Remove active class from all tabs
+            document.querySelectorAll('.tab').forEach(tab => {
+                tab.classList.remove('active');
+            });
+            
+            // Show selected tab content
+            document.getElementById(tabName).classList.add('active');
+            
+            // Add active class to clicked tab
+            event.target.classList.add('active');
+        }
+
+        function testAutomaton(type) {
+            const config = getConfig(type);
+            const testString = document.getElementById(`${type.toLowerCase()}-test`).value;
+            
+            fetch('/api/test_automaton', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    type: type,
+                    config: config,
+                    test_string: testString
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                displayResults(data, testString);
+            })
+            .catch(error => {
+                displayError('Error: ' + error.message);
+            });
+        }
+
+        function getConfig(type) {
+            if (type === 'DFA') {
+                return {
+                    states: new Set(document.getElementById('dfa-states').value.split(',')),
+                    alphabet: new Set(document.getElementById('dfa-alphabet').value.split(',')),
+                    transitions: JSON.parse(document.getElementById('dfa-transitions').value),
+                    start_state: document.getElementById('dfa-start').value,
+                    accept_states: new Set(document.getElementById('dfa-accept').value.split(','))
+                };
+            } else if (type === 'NFA') {
+                return {
+                    states: new Set(document.getElementById('nfa-states').value.split(',')),
+                    alphabet: new Set(document.getElementById('nfa-alphabet').value.split(',')),
+                    transitions: JSON.parse(document.getElementById('nfa-transitions').value),
+                    start_state: document.getElementById('nfa-start').value,
+                    accept_states: new Set(document.getElementById('nfa-accept').value.split(','))
+                };
+            } else if (type === 'PDA') {
+                const transitions = JSON.parse(document.getElementById('pda-transitions').value);
+                const transDict = {};
+                transitions.forEach(([state, symbol, stackTop, nextState, stackOp]) => {
+                    const key = [state, symbol, stackTop];
+                    if (!transDict[key]) transDict[key] = [];
+                    transDict[key].push([nextState, stackOp]);
+                });
+                
+                return {
+                    states: new Set(document.getElementById('pda-states').value.split(',')),
+                    alphabet: new Set(document.getElementById('pda-alphabet').value.split(',')),
+                    stack_alphabet: new Set(document.getElementById('pda-stack-alphabet').value.split(',')),
+                    transitions: transDict,
+                    start_state: document.getElementById('pda-start').value,
+                    accept_states: new Set(document.getElementById('pda-accept').value.split(','))
+                };
+            }
+            return {};
+        }
+
+        function displayResults(data, testString) {
+            const resultsDiv = document.getElementById('results');
+            
+            if (data.success) {
+                resultsDiv.className = 'results success';
+                resultsDiv.innerHTML = `
+                    <h3>Result</h3>
+                    <p>String "${testString}" is <strong>${data.result ? 'ACCEPTED' : 'REJECTED'}</strong></p>
+                    ${data.trace ? `<div class="trace"><h4>Execution Trace:</h4><pre>${JSON.stringify(data.trace, null, 2)}</pre></div>` : ''}
+                `;
+            } else {
+                resultsDiv.className = 'results error';
+                resultsDiv.innerHTML = `<h3>Error</h3><p>${data.error}</p>`;
+            }
+        }
+
+        function displayError(message) {
+            const resultsDiv = document.getElementById('results');
+            resultsDiv.className = 'results error';
+            resultsDiv.innerHTML = `<h3>Error</h3><p>${message}</p>`;
+        }
+
+        function visualizeAutomaton(type) {
+            const config = getConfig(type);
+            
+            fetch('/api/visualize', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    type: type,
+                    config: config
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    document.getElementById('visualization').innerHTML = `
+                        <h3>Visualization</h3>
+                        <p>GraphViz DOT notation:</p>
+                        <pre style="text-align: left; background: #f8f9fa; padding: 10px; border-radius: 4px;">${data.dot}</pre>
+                        <p><em>Copy this DOT code to <a href="https://dreampuf.github.io/GraphvizOnline/" target="_blank">GraphViz Online</a> to visualize</em></p>
+                    `;
+                }
+            });
+        }
+
+        function loadExample(type, example) {
+            // This would load predefined examples
+            alert(`Loading ${type} example: ${example}`);
+        }
+    </script>
+</body>
+</html>

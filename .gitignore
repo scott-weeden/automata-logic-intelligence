@@ -12,3 +12,10 @@ venv/**/*
 *.egg-info/**/**/**/**/**/**/*
 *.egg-info/**/**/**/**/**/**/**/*
 *.egg-info/**/**/**/**/**/**/**/**/*
+.amazonq
+.claude
+.codex
+.cursor
+__pycache__
+.amazonq/**/* 
+.amazonq/cli-todo-lists/1758688012771.json
