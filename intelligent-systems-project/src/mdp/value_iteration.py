@@ -1,148 +1,202 @@
-"""
-Value Iteration Algorithm for MDPs
+"""Dynamic-programming algorithms for solving finite MDPs."""
 
-Implements value iteration to find optimal policies.
-Based on CS 5368 Week 6-7 Bellman equations and dynamic programming.
+from __future__ import annotations
 
-Value iteration repeatedly applies Bellman update:
-U(s) = R(s) + γ max_a Σ P(s'|s,a) U(s')
-
-Converges to optimal utilities U* and optimal policy π*.
-"""
-
-import math
 from collections import defaultdict
+from typing import Dict, Mapping, Optional, Sequence, Tuple, Any
 
-def value_iteration(mdp, epsilon=0.001):
-    """
-    Solve MDP using value iteration algorithm.
-    
-    Args:
-        mdp: MDP object with states, actions, transitions, rewards
-        epsilon: Convergence threshold for utility changes
-    
-    Returns:
-        Dictionary mapping states to optimal utilities
-    """
-    # Initialize utilities arbitrarily (often to 0)
-    U = defaultdict(float)
-    U_prime = defaultdict(float)
-    
-    iteration = 0
-    while True:
-        # Copy current utilities
-        U_prime = U.copy()
-        delta = 0
-        
-        # Update utility for each state
-        for s in mdp.states:
-            if s in mdp.terminals:
-                U[s] = mdp.R(s)
-            else:
-                # Bellman update: U(s) = R(s) + γ max_a Σ P(s'|s,a) U(s')
-                max_utility = -math.inf
-                
-                for a in mdp.actions(s):
-                    utility_sum = 0
-                    for prob, s_prime in mdp.T(s, a):
-                        utility_sum += prob * U_prime[s_prime]
-                    
-                    action_utility = mdp.R(s) + mdp.gamma * utility_sum
-                    max_utility = max(max_utility, action_utility)
-                
-                U[s] = max_utility
-            
-            # Track maximum change in utilities
-            delta = max(delta, abs(U[s] - U_prime[s]))
-        
-        iteration += 1
-        
-        # Check convergence
-        if delta < epsilon * (1 - mdp.gamma) / mdp.gamma:
+from .mdp import MarkovDecisionProcess
+
+State = Any
+Action = Any
+
+
+def value_iteration(
+    mdp: MarkovDecisionProcess,
+    discount: float = 0.9,
+    iterations: int = 100,
+    tolerance: float = 1e-6,
+) -> Dict[State, float]:
+    """Run value iteration and return the resulting state-value function."""
+
+    values: Dict[State, float] = {state: 0.0 for state in mdp.get_states()}
+
+    for _ in range(iterations):
+        delta = 0.0
+        new_values = values.copy()
+        for state in mdp.get_states():
+            if mdp.is_terminal(state):
+                new_values[state] = 0.0
+                continue
+
+            actions = [action for action in mdp.get_possible_actions(state) if action is not None]
+            if not actions:
+                new_values[state] = 0.0
+                continue
+
+            q_values = [
+                _q_value(mdp, state, action, values, discount)
+                for action in actions
+            ]
+            best = max(q_values)
+            new_values[state] = best
+            delta = max(delta, abs(best - values[state]))
+        values = new_values
+        if delta < tolerance:
             break
-    
-    print(f"Value iteration converged after {iteration} iterations")
-    return dict(U)
+    return values
 
-def extract_policy(mdp, utilities):
-    """
-    Extract optimal policy from utilities using one-step lookahead.
-    
-    Args:
-        mdp: MDP object
-        utilities: State utilities from value iteration
-    
-    Returns:
-        Dictionary mapping states to optimal actions
-    """
-    policy = {}
-    
-    for s in mdp.states:
-        if s in mdp.terminals:
-            policy[s] = None
-        else:
-            best_action = None
-            best_utility = -math.inf
-            
-            for a in mdp.actions(s):
-                utility_sum = 0
-                for prob, s_prime in mdp.T(s, a):
-                    utility_sum += prob * utilities[s_prime]
-                
-                action_utility = mdp.R(s) + mdp.gamma * utility_sum
-                
-                if action_utility > best_utility:
-                    best_utility = action_utility
-                    best_action = a
-            
-            policy[s] = best_action
-    
+
+def policy_evaluation(
+    mdp: MarkovDecisionProcess,
+    policy: Mapping[State, Optional[Action]],
+    discount: float = 0.9,
+    tolerance: float = 1e-6,
+) -> Dict[State, float]:
+    """Compute the value function for a fixed policy using iterative evaluation."""
+
+    values: Dict[State, float] = {state: 0.0 for state in mdp.get_states()}
+
+    while True:
+        delta = 0.0
+        new_values = values.copy()
+        for state in mdp.get_states():
+            if mdp.is_terminal(state):
+                new_values[state] = 0.0
+                continue
+
+            action = policy.get(state)
+            if action is None:
+                new_values[state] = 0.0
+                continue
+
+            new_val = _q_value(mdp, state, action, values, discount)
+            new_values[state] = new_val
+            delta = max(delta, abs(new_val - values[state]))
+        values = new_values
+        if delta < tolerance:
+            break
+    return values
+
+
+def extract_policy(
+    mdp: MarkovDecisionProcess,
+    values: Mapping[State, float],
+    discount: float = 0.9,
+) -> Dict[State, Optional[Action]]:
+    """Derive a greedy policy from a state-value function."""
+
+    policy: Dict[State, Optional[Action]] = {}
+    for state in mdp.get_states():
+        if mdp.is_terminal(state):
+            policy[state] = None
+            continue
+
+        actions = [action for action in mdp.get_possible_actions(state) if action is not None]
+        if not actions:
+            policy[state] = None
+            continue
+
+        best_action = None
+        best_value = float("-inf")
+        for action in actions:
+            q_val = _q_value(mdp, state, action, values, discount)
+            if q_val > best_value:
+                best_value = q_val
+                best_action = action
+        policy[state] = best_action
     return policy
 
-def policy_evaluation(mdp, policy, utilities=None, max_iterations=100):
-    """
-    Evaluate given policy to compute state utilities.
-    
-    Args:
-        mdp: MDP object
-        policy: Policy mapping states to actions
-        utilities: Initial utilities (default: all zeros)
-        max_iterations: Maximum number of iterations
-    
-    Returns:
-        Dictionary of state utilities under given policy
-    """
-    if utilities is None:
-        utilities = defaultdict(float)
-    
-    for iteration in range(max_iterations):
-        U_prime = utilities.copy()
-        
-        for s in mdp.states:
-            if s in mdp.terminals:
-                utilities[s] = mdp.R(s)
-            else:
-                action = policy[s]
-                if action is not None:
-                    utility_sum = 0
-                    for prob, s_prime in mdp.T(s, action):
-                        utility_sum += prob * U_prime[s_prime]
-                    
-                    utilities[s] = mdp.R(s) + mdp.gamma * utility_sum
-    
-    return dict(utilities)
 
-def value_iteration_with_policy(mdp, epsilon=0.001):
-    """
-    Run value iteration and return both utilities and optimal policy.
-    
-    Args:
-        mdp: MDP object
-        epsilon: Convergence threshold
-    
-    Returns:
-        Tuple of (utilities, policy) dictionaries
-    """
-    utilities = value_iteration(mdp, epsilon)
-    policy = extract_policy(mdp, utilities)
-    return utilities, policy
+def _q_value(
+    mdp: MarkovDecisionProcess,
+    state: State,
+    action: Action,
+    values: Mapping[State, float],
+    discount: float,
+) -> float:
+    total = 0.0
+    for next_state, prob in mdp.get_transition_states_and_probs(state, action):
+        reward = mdp.get_reward(state, action, next_state)
+        total += prob * (reward + discount * values.get(next_state, 0.0))
+    return total
+
+
+class ValueIterationAgent:
+    """Solve an MDP with value iteration and expose the resulting policy."""
+
+    def __init__(
+        self,
+        mdp: MarkovDecisionProcess,
+        discount: float = 0.9,
+        iterations: int = 100,
+        tolerance: float = 1e-6,
+    ) -> None:
+        self.mdp = mdp
+        self.discount = discount
+        self.iterations = iterations
+        self.tolerance = tolerance
+        self.values = value_iteration(mdp, discount, iterations, tolerance)
+        self.policy = extract_policy(mdp, self.values, discount)
+
+    def get_value(self, state: State) -> float:
+        return self.values.get(state, 0.0)
+
+    def get_policy(self, state: State) -> Optional[Action]:
+        return self.policy.get(state)
+
+
+class PolicyIterationAgent:
+    """Policy iteration agent that alternates evaluation and improvement."""
+
+    def __init__(
+        self,
+        mdp: MarkovDecisionProcess,
+        discount: float = 0.9,
+        tolerance: float = 1e-6,
+        max_iterations: int = 100,
+    ) -> None:
+        self.mdp = mdp
+        self.discount = discount
+        self.tolerance = tolerance
+        self.max_iterations = max_iterations
+
+        self.policy: Dict[State, Optional[Action]] = {}
+        for state in mdp.get_states():
+            if mdp.is_terminal(state):
+                self.policy[state] = None
+            else:
+                actions = [action for action in mdp.get_possible_actions(state) if action is not None]
+                self.policy[state] = actions[0] if actions else None
+
+        self.values = {state: 0.0 for state in mdp.get_states()}
+        self._run_policy_iteration()
+
+    def _run_policy_iteration(self) -> None:
+        for _ in range(self.max_iterations):
+            self.values = policy_evaluation(self.mdp, self.policy, self.discount, self.tolerance)
+            stable = True
+            for state in self.mdp.get_states():
+                if self.mdp.is_terminal(state):
+                    continue
+                actions = [action for action in self.mdp.get_possible_actions(state) if action is not None]
+                if not actions:
+                    if self.policy.get(state) is not None:
+                        self.policy[state] = None
+                        stable = False
+                    continue
+                best_action = max(
+                    actions,
+                    key=lambda action: _q_value(self.mdp, state, action, self.values, self.discount),
+                )
+                if self.policy.get(state) != best_action:
+                    self.policy[state] = best_action
+                    stable = False
+            if stable:
+                break
+
+    def get_value(self, state: State) -> float:
+        return self.values.get(state, 0.0)
+
+    def get_policy(self, state: State) -> Optional[Action]:
+        return self.policy.get(state)

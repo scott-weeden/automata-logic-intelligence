@@ -1,20 +1,21 @@
-"""
-MDP Module
+"""Markov Decision Process utilities and solution algorithms."""
 
-Implements Markov Decision Processes and solution algorithms.
-Based on CS 5368 Week 6-7 material on sequential decision making.
-"""
-
-from .mdp import MDP, GridMDP
-from .value_iteration import value_iteration, extract_policy, policy_evaluation
-from .agents import (
-    MarkovDecisionProcess, ValueIterationAgent, PolicyIterationAgent,
-    QLearningAgent, SARSAAgent
+from .mdp import MarkovDecisionProcess, MDP, GridMDP
+from .value_iteration import (
+    value_iteration,
+    policy_evaluation,
+    extract_policy,
+    ValueIterationAgent,
+    PolicyIterationAgent,
 )
 
 __all__ = [
-    'MDP', 'GridMDP',
-    'value_iteration', 'extract_policy', 'policy_evaluation',
-    'MarkovDecisionProcess', 'ValueIterationAgent', 'PolicyIterationAgent',
-    'QLearningAgent', 'SARSAAgent'
+    "MarkovDecisionProcess",
+    "MDP",
+    "GridMDP",
+    "value_iteration",
+    "policy_evaluation",
+    "extract_policy",
+    "ValueIterationAgent",
+    "PolicyIterationAgent",
 ]
