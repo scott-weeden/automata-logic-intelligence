@@ -16,8 +16,8 @@ RUN apt-get update && apt-get install -y \
 # Set working directory
 WORKDIR /workspace
 
-# Copy LaTeX files
-COPY main.tex .
+# Copy all files
+COPY . .
 
 # Default command to compile LaTeX
 CMD ["pdflatex", "-interaction=nonstopmode", "main.tex"]
