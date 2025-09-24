@@ -1,142 +1,124 @@
-"""
-Search Utilities
+"""Utility classes used by informed search algorithms."""
 
-Helper classes and functions for search algorithms.
-Includes Node class for representing search tree nodes.
-"""
+from __future__ import annotations
 
+import heapq
+import itertools
+from dataclasses import dataclass, field
+from typing import Any, Callable, Iterable, Iterator, List, Optional, Sequence
+
+
+@dataclass(frozen=True)
 class Node:
-    """
-    Node in search tree. Contains state, parent, action, path cost.
-    Used by all search algorithms to track exploration.
-    """
-    
-    def __init__(self, state, parent=None, action=None, path_cost=0):
-        """Initialize search node."""
-        self.state = state
-        self.parent = parent
-        self.action = action
-        self.path_cost = path_cost
-        self.depth = 0 if parent is None else parent.depth + 1
-    
-    def child_node(self, problem, action):
-        """Create child node by applying action."""
-        next_state = problem.result(self.state, action)
-        next_cost = problem.path_cost(self.path_cost, self.state, action, next_state)
-        return Node(next_state, self, action, next_cost)
-    
-    def solution(self):
-        """Return sequence of actions from root to this node."""
-        path = []
-        node = self
-        while node.parent is not None:
-            path.append(node.action)
-            node = node.parent
-        return list(reversed(path))
-    
-    def path(self):
-        """Return sequence of states from root to this node."""
-        path = []
-        node = self
-        while node is not None:
-            path.append(node.state)
-            node = node.parent
-        return list(reversed(path))
-    
-    def __eq__(self, other):
-        """Nodes are equal if they have same state."""
-        return isinstance(other, Node) and self.state == other.state
-    
-    def __hash__(self):
-        """Hash based on state for use in sets/dicts."""
-        return hash(self.state)
-    
-    def __lt__(self, other):
-        """Compare nodes by path cost for priority queue."""
-        return self.path_cost < other.path_cost
-    
-    def __repr__(self):
-        """String representation for debugging."""
-        return f"Node({self.state}, cost={self.path_cost})"
+    """Representation of a node in the search tree."""
 
-def memoize(fn, slot=None):
-    """
-    Memoization decorator for expensive function calls.
-    Useful for caching heuristic computations.
-    """
-    if slot:
-        def memoized_fn(obj, *args):
-            if hasattr(obj, slot):
-                return getattr(obj, slot)
-            else:
-                val = fn(obj, *args)
-                setattr(obj, slot, val)
-                return val
-    else:
-        def memoized_fn(*args):
-            if args not in memoized_fn.cache:
-                memoized_fn.cache[args] = fn(*args)
-            return memoized_fn.cache[args]
-        memoized_fn.cache = {}
-    return memoized_fn
+    state: Any
+    parent: Optional["Node"] = None
+    action: Optional[Any] = None
+    path_cost: float = 0.0
+    depth: int = field(init=False)
+
+    def __post_init__(self) -> None:
+        depth = 0 if self.parent is None else self.parent.depth + 1
+        object.__setattr__(self, "depth", depth)
+
+    def expand(self, problem) -> List["Node"]:
+        """Return child nodes generated from this node."""
+        children: List[Node] = []
+        for successor, action, cost in problem.get_successors(self.state):
+            child = Node(successor, self, action, self.path_cost + cost)
+            children.append(child)
+        return children
+
+    def solution(self) -> List[Any]:
+        """Return the list of actions that reaches this node from the root."""
+        actions: List[Any] = []
+        node: Optional[Node] = self
+        while node and node.parent is not None:
+            actions.append(node.action)
+            node = node.parent
+        actions.reverse()
+        return actions
+
+    def path(self) -> List[Any]:
+        """Return the list of states from the root to this node."""
+        states: List[Any] = []
+        node: Optional[Node] = self
+        while node is not None:
+            states.append(node.state)
+            node = node.parent
+        states.reverse()
+        return states
+
+    def __lt__(self, other: "Node") -> bool:
+        return self.path_cost < other.path_cost
+
+    def __hash__(self) -> int:  # pragma: no cover - trivial wrapper
+        return hash(self.state)
+
 
 class PriorityQueue:
+    """A heap-backed priority queue with membership helpers.
+
+    The implementation mirrors the interface used in Berkeley's Pac-Man
+    projects: ``append`` inserts elements, ``pop`` removes the element with the
+    smallest (or largest) priority, and the container provides membership tests
+    and item retrieval by key.
     """
-    Priority queue implementation for search algorithms.
-    Supports insertion, removal, and membership testing.
-    """
-    
-    def __init__(self, order='min', f=lambda x: x):
-        """
-        Initialize priority queue.
-        order: 'min' for min-heap, 'max' for max-heap
-        f: function to extract priority from items
-        """
-        self.heap = []
-        self.f = f
+
+    def __init__(self, order: str = "min", f: Callable[[Any], float] = lambda x: x):
+        if order not in {"min", "max"}:
+            raise ValueError("order must be either 'min' or 'max'")
         self.order = order
-    
-    def append(self, item):
-        """Add item to queue."""
-        import heapq
+        self.f = f
+        self._heap: List[tuple[float, int, Any]] = []
+        self._counter = itertools.count()
+
+    def append(self, item: Any) -> None:
         priority = self.f(item)
-        if self.order == 'max':
+        if self.order == "max":
             priority = -priority
-        heapq.heappush(self.heap, (priority, item))
-    
-    def extend(self, items):
-        """Add multiple items to queue."""
+        entry = (priority, next(self._counter), item)
+        heapq.heappush(self._heap, entry)
+
+    def extend(self, items: Iterable[Any]) -> None:
         for item in items:
             self.append(item)
-    
-    def pop(self):
-        """Remove and return item with highest priority."""
-        import heapq
-        if self.heap:
-            return heapq.heappop(self.heap)[1]
-        else:
-            raise Exception('Trying to pop from empty PriorityQueue.')
-    
-    def __len__(self):
-        """Return number of items in queue."""
-        return len(self.heap)
-    
-    def __contains__(self, key):
-        """Check if key is in queue."""
-        return any(item == key for _, item in self.heap)
-    
-    def __getitem__(self, key):
-        """Get item with given key."""
-        for _, item in self.heap:
-            if item == key:
+
+    def pop(self) -> Any:
+        if not self._heap:
+            raise IndexError("pop from empty PriorityQueue")
+        _, _, item = heapq.heappop(self._heap)
+        return item
+
+    def __len__(self) -> int:
+        return len(self._heap)
+
+    def _matches(self, item: Any, key: Any) -> bool:
+        if item == key:
+            return True
+        if hasattr(item, "state") and item.state == key:
+            return True
+        if isinstance(item, tuple) and len(item) >= 2 and item[1] == key:
+            return True
+        return False
+
+    def __contains__(self, key: Any) -> bool:
+        return any(self._matches(item, key) for _, _, item in self._heap)
+
+    def __getitem__(self, key: Any) -> Any:
+        for _, _, item in self._heap:
+            if self._matches(item, key):
                 return item
-        raise KeyError(str(key) + " is not in the priority queue")
-    
-    def __delitem__(self, key):
-        """Remove item with given key."""
-        try:
-            del self.heap[[item == key for _, item in self.heap].index(True)]
-            import heapq
-            heapq.heapify(self.heap)
-        except ValueError:
-            raise KeyError(str(key) + " is not in the priority queue")
+        raise KeyError(f"{key!r} not found in priority queue")
+
+    def __delitem__(self, key: Any) -> None:
+        for index, (_, _, item) in enumerate(self._heap):
+            if self._matches(item, key):
+                del self._heap[index]
+                heapq.heapify(self._heap)
+                return
+        raise KeyError(f"{key!r} not found in priority queue")
+
+    def __iter__(self) -> Iterator[Any]:  # pragma: no cover - helper for debugging
+        return (item for _, _, item in sorted(self._heap))
