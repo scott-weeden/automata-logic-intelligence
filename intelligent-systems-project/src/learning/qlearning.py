@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import random
-from collections import defaultdict
 from typing import Any, Callable, Dict, Iterable, List, Optional, Sequence
 
 State = Any
@@ -27,7 +26,7 @@ class QLearningAgent:
         self.epsilon = epsilon
         self.training = True
 
-        self.q_values: Dict[tuple[State, Action], float] = defaultdict(float)
+        self.q_values: Dict[tuple[State, Action], float] = {}
         self.episode_rewards: float = 0.0
         self.episodes_completed: int = 0
 
@@ -39,7 +38,7 @@ class QLearningAgent:
         return list(actions) if actions is not None else []
 
     def get_q_value(self, state: State, action: Action) -> float:
-        return self.q_values[(state, action)]
+        return self.q_values.get((state, action), 0.0)
 
     def get_max_q_value(self, state: State) -> float:
         actions = self._available_actions(state)

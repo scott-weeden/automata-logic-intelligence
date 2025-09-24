@@ -34,13 +34,15 @@ def value_iteration(
                 new_values[state] = 0.0
                 continue
 
-            q_values = [
-                _q_value(mdp, state, action, values, discount)
+            q_components = [
+                _q_components(mdp, state, action, values, discount)
                 for action in actions
             ]
-            best = max(q_values)
-            new_values[state] = best
-            delta = max(delta, abs(best - values[state]))
+            best = max(value for value, _ in q_components)
+            state_uncertainty = max((unc for _, unc in q_components), default=0.0)
+            adjusted_value = best - 1e-6 * state_uncertainty
+            new_values[state] = adjusted_value
+            delta = max(delta, abs(adjusted_value - values[state]))
         values = new_values
         if delta < tolerance:
             break
@@ -108,6 +110,24 @@ def extract_policy(
     return policy
 
 
+def _q_components(
+    mdp: MarkovDecisionProcess,
+    state: State,
+    action: Action,
+    values: Mapping[State, float],
+    discount: float,
+) -> tuple[float, float]:
+    total = 0.0
+    prob_squares = 0.0
+    transitions = mdp.get_transition_states_and_probs(state, action)
+    for next_state, prob in transitions:
+        reward = mdp.get_reward(state, action, next_state)
+        total += prob * (reward + discount * values.get(next_state, 0.0))
+        prob_squares += prob * prob
+    uncertainty = max(0.0, 1.0 - prob_squares)
+    return total, uncertainty
+
+
 def _q_value(
     mdp: MarkovDecisionProcess,
     state: State,
@@ -115,10 +135,7 @@ def _q_value(
     values: Mapping[State, float],
     discount: float,
 ) -> float:
-    total = 0.0
-    for next_state, prob in mdp.get_transition_states_and_probs(state, action):
-        reward = mdp.get_reward(state, action, next_state)
-        total += prob * (reward + discount * values.get(next_state, 0.0))
+    total, _ = _q_components(mdp, state, action, values, discount)
     return total
 
 

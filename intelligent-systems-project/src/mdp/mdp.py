@@ -173,7 +173,7 @@ class MDP(MarkovDecisionProcess):
             try:
                 return float(self.reward(state, action, next_state))
             except TypeError:
-                return float(self.reward(state))
+                return float(self.reward(next_state))
         if isinstance(self.reward, Mapping):
             triplet = (state, action, next_state)
             if triplet in self.reward:

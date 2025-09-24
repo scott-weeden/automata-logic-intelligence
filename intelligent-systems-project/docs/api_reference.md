@@ -1,9 +1,9 @@
 # API Reference – Intelligent Systems Project
 
-Phases 1–4 establish the reusable infrastructure and flagship algorithms for the
+Phases 1–6 establish the reusable infrastructure and flagship algorithms for the
 project.  The modules below now include problem abstractions, heuristic helpers,
-search strategies, and adversarial agents that higher-level coursework builds
-upon.
+search strategies, adversarial agents, Markov decision process utilities, and
+reinforcement learning agents that later coursework builds upon.
 
 ---
 
@@ -134,6 +134,112 @@ used directly with `GameState` subclasses without additional wrappers.
 
 ---
 
+## MDP Module (`src/mdp/`)
+
+### Core Interfaces
+
+#### `class MarkovDecisionProcess`
+Abstract base class specifying the API consumed by planning algorithms.  Custom
+MDPs inherit and override all six methods (`get_states`, `get_start_state`,
+`get_possible_actions`, `get_transition_states_and_probs`, `get_reward`,
+`is_terminal`).
+
+#### `class MDP(MarkovDecisionProcess)`
+Concrete helper for finite MDPs with optional stochastic transitions.
+
+```python
+MDP(
+    init: State,
+    actlist: Sequence | Mapping | Callable,
+    terminals: Iterable[State],
+    transitions: Mapping,
+    reward: Mapping | Callable,
+    gamma: float = 0.9,
+)
+```
+
+* Accepts transition models either as `{state: {action: [(next, prob), ...]}}`
+  or `{(state, action): [(next, prob), ...]}`.
+* Rewards can be supplied as a mapping (`state` or `(state, action, next)` keys)
+  or as a callable.
+* Exposes convenience methods `actions(state)`, `T(state, action)`, and `R(state)`.
+
+#### `@dataclass class GridMDP(MDP)`
+Stochastic grid world mirroring the example from Russell & Norvig.
+
+* Treats `None` cells as obstacles and numbers as per-state rewards.
+* Actions are `(dr, dc)` offsets for the four cardinal directions; terminal
+  states expose `[None]` as the only action.
+* Transition model: 80% intended direction, 10% for each perpendicular deviation
+  (falling back to the current cell if the move hits an obstacle).
+
+### Dynamic-Programming Algorithms
+
+#### `value_iteration(mdp, discount=0.9, iterations=100, tolerance=1e-6)`
+Iteratively refines the state-value function until convergence or the iteration
+limit is reached.  Returns a dictionary `{state: V(state)}`.
+
+#### `policy_evaluation(mdp, policy, discount=0.9, tolerance=1e-6)`
+Computes the value function for a fixed policy mapping `state -> action`.
+
+#### `extract_policy(mdp, values, discount=0.9)`
+Returns the greedy policy corresponding to a state-value function.
+
+#### `ValueIterationAgent`
+Runs `value_iteration` during initialization and caches both the value function
+and the greedy policy.
+
+```python
+agent = ValueIterationAgent(mdp, discount=0.95, iterations=200)
+agent.get_value(state)
+agent.get_policy(state)
+```
+
+#### `PolicyIterationAgent`
+Alternates between policy evaluation and improvement until convergence.
+Stores both the converged value function and policy.
+
+```python
+agent = PolicyIterationAgent(mdp, discount=0.9)
+agent.get_policy(state)
+agent.get_value(state)
+```
+
+---
+
+## Learning Module (`src/learning/`)
+
+### Agents
+
+#### `QLearningAgent`
+Tabular Q-learning agent with epsilon-greedy exploration.
+
+```python
+agent = QLearningAgent(
+    action_fn=lambda state: ['up', 'down', 'left', 'right'],
+    discount=0.9,
+    alpha=0.5,
+    epsilon=0.1,
+)
+
+agent.start_episode()
+action = agent.get_action(state)
+agent.update(state, action, next_state, reward)
+agent.stop_training()
+```
+
+* `q_values[(state, action)]` stores learned estimates.
+* `get_action(state)` explores with probability `epsilon` while training and acts
+  greedily otherwise.
+* `episode_rewards` accumulates per-episode reward; reset via `start_episode()`.
+
+#### `SARSAAgent`
+On-policy temporal-difference control mirroring `QLearningAgent` but updating
+with the value of the action actually taken next.  Set `agent.next_action`
+before calling `agent.update(...)` when simulating the policy.
+
+---
+
 ## Usage Examples
 
 ### Solving a Grid Pathfinding Task
@@ -168,4 +274,36 @@ while not game.terminal_test(state):
     state = game.result(state, action)
 
 print("Utility for X:", game.utility(state, player=0))
+```
+
+### Planning with Value Iteration
+```python
+from src.mdp import GridMDP, ValueIterationAgent
+
+grid = [
+    [-0.04, -0.04, -0.04, 1],
+    [-0.04, None, -0.04, -1],
+    [-0.04, -0.04, -0.04, -0.04],
+]
+
+mdp = GridMDP(grid, terminals={(0, 3), (1, 3)})
+agent = ValueIterationAgent(mdp, discount=0.9, iterations=100)
+print(agent.get_policy((0, 0)))
+```
+
+### Training a Q-Learning Agent
+```python
+from src.learning import QLearningAgent
+
+actions = lambda state: ['up', 'down', 'left', 'right']
+agent = QLearningAgent(actions, discount=0.9, alpha=0.5, epsilon=0.1)
+
+state = (0, 0)
+agent.start_episode()
+for _ in range(100):
+    action = agent.get_action(state)
+    next_state = ...  # environment transition
+    reward = ...
+    agent.update(state, action, next_state, reward)
+    state = next_state
 ```
