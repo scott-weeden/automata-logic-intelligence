@@ -1,7 +1,7 @@
 # Makefile for Automata Theory Library
 # Run 'make help' for available commands
 
-.PHONY: help install test clean build docs run-demo quickstart docker lint format coverage
+.PHONY: help install test clean build docs run-demo quickstart docker lint format coverage minimal basic small medium full test-minimal test-basic test-small test-medium test-full
 
 # Variables
 PYTHON := python3
@@ -48,6 +48,137 @@ help:
 	@echo ""
 	@echo "$(YELLOW)Docker:$(NC)"
 	@echo "  $(GREEN)make docker-build$(NC) - Build Docker image"
+	@echo "  $(GREEN)make docker-run$(NC)   - Run in Docker container"
+	@echo "  $(GREEN)make minimal$(NC)      - Build minimal TeX Live image"
+	@echo "  $(GREEN)make basic$(NC)        - Build basic TeX Live image"
+	@echo "  $(GREEN)make small$(NC)        - Build small TeX Live image"
+	@echo "  $(GREEN)make medium$(NC)       - Build medium TeX Live image"
+	@echo "  $(GREEN)make full$(NC)         - Build full TeX Live image"
+
+# Virtual environment setup
+venv:
+	@echo "$(BLUE)Creating virtual environment...$(NC)"
+	$(PYTHON) -m venv $(VENV)
+	@echo "$(GREEN)✓ Virtual environment created$(NC)"
+	@echo "$(YELLOW)Activate with: source $(VENV)/bin/activate$(NC)"
+
+# Installation
+install: venv
+	@echo "$(BLUE)Installing dependencies...$(NC)"
+	$(ACTIVATE) && $(PIP) install --upgrade pip
+	$(ACTIVATE) && $(PIP) install -e ".[dev]"
+	@echo "$(GREEN)✓ Installation complete$(NC)"
+
+# Testing
+test:
+	@echo "$(BLUE)Running tests...$(NC)"
+	$(ACTIVATE) && $(PYTEST) -v
+
+test-student:
+	@echo "$(BLUE)Running student solution tests...$(NC)"
+	$(ACTIVATE) && $(PYTEST) -v -k "student"
+
+test-watch:
+	@echo "$(BLUE)Running tests in watch mode...$(NC)"
+	$(ACTIVATE) && $(PYTEST) -f
+
+coverage:
+	@echo "$(BLUE)Running tests with coverage...$(NC)"
+	$(ACTIVATE) && $(PYTEST) --cov=automata --cov-report=html --cov-report=term
+
+# Development
+lint:
+	@echo "$(BLUE)Running linting...$(NC)"
+	$(ACTIVATE) && flake8 src/ tests/
+	$(ACTIVATE) && mypy src/
+
+format:
+	@echo "$(BLUE)Formatting code...$(NC)"
+	$(ACTIVATE) && black src/ tests/
+	$(ACTIVATE) && isort src/ tests/
+
+clean:
+	@echo "$(BLUE)Cleaning build artifacts...$(NC)"
+	rm -rf build/ dist/ *.egg-info/
+	rm -rf .pytest_cache/ .coverage htmlcov/
+	find . -type d -name __pycache__ -exec rm -rf {} +
+	find . -type f -name "*.pyc" -delete
+	@echo "$(GREEN)✓ Clean complete$(NC)"
+
+# Documentation
+docs:
+	@echo "$(BLUE)Generating documentation...$(NC)"
+	$(ACTIVATE) && cd docs && make html
+	@echo "$(GREEN)✓ Documentation generated$(NC)"
+
+# Demos
+demo-loop:
+	@echo "$(BLUE)Running infinite loop demo...$(NC)"
+	$(ACTIVATE) && python examples/infinite_loop_demo.py
+
+demo-trace:
+	@echo "$(BLUE)Running TM trace demo...$(NC)"
+	$(ACTIVATE) && python examples/tm_trace_demo.py
+
+examples:
+	@echo "$(BLUE)Creating example machines...$(NC)"
+	$(ACTIVATE) && python scripts/create_examples.py
+
+# Quickstart
+quickstart:
+	@echo "$(BLUE)Running quickstart...$(NC)"
+	$(ACTIVATE) && python quickstart.py
+
+# Docker targets for GitHub workflow
+minimal:
+	@echo "$(BLUE)Building minimal TeX Live image...$(NC)"
+	docker build -f Dockerfile.working -t image:version-minimal .
+
+basic:
+	@echo "$(BLUE)Building basic TeX Live image...$(NC)"
+	docker build -f Dockerfile.working -t image:version-basic .
+
+small:
+	@echo "$(BLUE)Building small TeX Live image...$(NC)"
+	docker build -f Dockerfile.working -t image:version-small .
+
+medium:
+	@echo "$(BLUE)Building medium TeX Live image...$(NC)"
+	docker build -f Dockerfile.working -t image:version-medium .
+
+full:
+	@echo "$(BLUE)Building full TeX Live image...$(NC)"
+	docker build -f Dockerfile.working -t image:version-full .
+
+# Test targets for GitHub workflow
+test-minimal:
+	@echo "$(BLUE)Testing minimal image...$(NC)"
+	docker run --rm image:version-minimal pdflatex --version
+
+test-basic:
+	@echo "$(BLUE)Testing basic image...$(NC)"
+	docker run --rm image:version-basic pdflatex --version
+
+test-small:
+	@echo "$(BLUE)Testing small image...$(NC)"
+	docker run --rm image:version-small pdflatex --version
+
+test-medium:
+	@echo "$(BLUE)Testing medium image...$(NC)"
+	docker run --rm image:version-medium pdflatex --version
+
+test-full:
+	@echo "$(BLUE)Testing full image...$(NC)"
+	docker run --rm image:version-full pdflatex --version
+
+# Docker build and run
+docker-build:
+	@echo "$(BLUE)Building Docker image...$(NC)"
+	@docker build -t $(PROJECT):latest .
+
+docker-run:
+	@echo "$(BLUE)Running Docker container...$(NC)"
+	@docker run -it --rm -v $(PWD):/app $(PROJECT):latest
 	@echo "  $(GREEN)make docker-run$(NC)   - Run in Docker container"
 	@echo ""
 	@echo "$(YELLOW)Student Exercises:$(NC)"
