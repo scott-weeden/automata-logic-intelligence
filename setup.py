@@ -98,7 +98,5 @@ setup(
         "pytest>=7.0.0",
         "pytest-cov>=4.0.0",
     ],
-    cmdclass={
-        'test': pytest,
-    },
+
 )
