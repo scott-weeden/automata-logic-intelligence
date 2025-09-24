@@ -1,133 +1,98 @@
 # Intelligent Systems Project
 
-## Overview
-This project implements core artificial intelligence algorithms including search strategies, game playing, Markov Decision Processes (MDPs), and reinforcement learning. Based on CS 5368: Intelligent Systems coursework.
+A compact teaching library for CS 5368 that implements classic AI algorithms:
+state-space search, adversarial game playing, Markov decision processes, and
+reinforcement learning.  The repository also ships assignment templates,
+realistic demo applications, and an end-to-end test suite.
 
-## Project Structure
-- `src/` - Core algorithm implementations
-- `applications/` - Real-world AI applications and demos
-- `notebooks/` - Educational Jupyter notebooks
-- `tests/` - Comprehensive test suites
-- `templates/` - Student assignment templates
-- `docs/` - API documentation and guides
+## Features
+- **Search** – BFS, DFS, UCS, A*, greedy and iterative deepening over custom
+  problem definitions.
+- **Games** – Tic-Tac-Toe domain with minimax, alpha-beta, and expectimax
+  agents.
+- **MDPs** – Finite MDP framework with value and policy iteration solvers.
+- **Learning** – Tabular Q-learning and SARSA agents ready for experimentation.
+- **Applications** – Ready-to-run demos for pathfinding, perfect Tic-Tac-Toe,
+  grid-world planning, trading with RL, and naïve Bayes diagnosis.
+- **Templates & Tests** – Starter files for coursework plus comprehensive
+  pytest suites covering every module.
 
-## Key Components
-
-### Search Algorithms
-- Breadth-First Search (BFS)
-- Depth-First Search (DFS) 
-- Uniform Cost Search (UCS)
-- A* Search with heuristics
-
-### Game Playing
-- Minimax algorithm
-- Alpha-Beta pruning
-- Game state representation
-
-### Decision Making
-- Markov Decision Processes
-- Value iteration
-- Policy iteration
-- Q-Learning and TD Learning
-
-## Installation
-```bash
-pip install -r requirements.txt
-python setup.py install
+## Project Layout
+```
+.
+├── applications/                # Demo entry points (Phase 9)
+├── docs/                        # API reference and guides
+├── src/                         # Library packages: search, games, mdp, learning
+├── templates/                   # Assignment templates (Phase 7)
+├── tests/                       # Pytest suites for all modules (Phase 8)
+├── requirements.txt             # Runtime dependencies
+└── setup.py                     # Packaging metadata (Phase 10)
 ```
 
-# Implementation Order (with dependency reasoning):
-## Phase 1: Core Foundation (No dependencies)
+## Installation
+It is recommended to work inside a virtual environment:
 
-src/__init__.py - Empty or with version info
-src/search/__init__.py, src/games/__init__.py, src/mdp/__init__.py, src/learning/__init__.py - Package initializers
-src/search/problem.py - Define base SearchProblem class (no dependencies)
-src/games/game_state.py - Define base GameState and GameAgent classes
+```bash
+python -m venv .venv
+source .venv/bin/activate  # Windows: .venv\Scripts\activate
+pip install --upgrade pip
+pip install -e .[dev]
+```
 
-## Phase 2: Utilities and Helpers
+The optional `dev` extra installs pytest and Jupyter notebooks.
 
-src/search/utils.py - Implement Node and PriorityQueue classes
-src/search/heuristics.py - Distance functions and heuristic classes
+## Running the Test Suite
+Every stage of the project is validated with pytest:
 
-## Phase 3: Search Algorithms (depends on problem.py and utils.py)
+```bash
+pytest tests
+```
 
-src/search/algorithms.py - Implement all search algorithms:
+To inspect basic coverage without installing extra tooling you can leverage the
+standard library trace module:
 
-SearchAgent base class first
-Then BreadthFirstSearch, DepthFirstSearch
-Then UniformCostSearch (needs PriorityQueue)
-Finally AStarSearch, GreedyBestFirstSearch (need heuristics)
+```bash
+python -m trace --count --module pytest tests
+```
 
-## Phase 4: Game Playing (depends on game_state.py)
+If you prefer detailed reports, install `coverage` and run
+`python -m coverage run -m pytest tests` followed by `python -m coverage report`.
 
-src/games/minimax.py - Basic Minimax implementation
-src/games/alphabeta.py - Alpha-beta pruning (extends minimax concepts)
+## Demo Applications
+Each application can be executed as a module or via the console scripts exposed
+by the package:
 
-## Phase 5: MDPs (mostly independent)
+| Demo | Module invocation | Console script |
+|------|------------------|----------------|
+| Grid pathfinding comparison | `python -m applications.pathfinding_demo` | `is-pathfinding-demo` |
+| Perfect-play Tic-Tac-Toe | `python -m applications.game_ai_demo` | `is-game-demo` |
+| Grid-world MDP analysis | `python -m applications.mdp_robot_navigation` | `is-mdp-demo` |
+| Q-learning trading agent | `python -m applications.reinforcement_learning_trader` | `is-rl-trader` |
+| Naïve Bayes diagnosis | `python -m applications.medical_diagnosis_bayes` | `is-medical-bayes` |
 
-src/mdp/mdp.py - Base MDP classes (MarkovDecisionProcess, MDP, GridMDP)
-src/mdp/value_iteration.py - Value iteration (depends on mdp.py)
-src/mdp/policy_iteration.py - Policy iteration (depends on mdp.py)
+All demos print their results to the console and are safe to run out of the box.
 
-## Phase 6: Learning (depends on MDP concepts)
+## Templates
+Reusable scaffolding for assignments lives under `templates/`:
 
-src/learning/td_learning.py - Base TD learning concepts
-src/learning/qlearning.py - Q-Learning and SARSA implementations
+- `search_agent_template.py` – customise a search strategy.
+- `game_agent_template.py` – build minimax-style agents with your own heuristics.
+- `mdp_agent_template.py` – extend value iteration for bespoke planners.
+- `test_template.py` – starting point for writing pytest-based assessments.
 
-## Phase 7: Templates (depends on core implementations)
+Copy the relevant file into your workspace and fill in the TODO sections.
 
-templates/search_agent_template.py
-templates/game_agent_template.py
-templates/mdp_agent_template.py
-templates/test_template.py
+## Documentation
+An API reference covering each module is available in `docs/api_reference.md`.
+Use it alongside the tests to understand the expected behaviour of every class
+and function.
 
-## Phase 8: Tests (depends on all src/ files)
+## Contributing
+The project follows the original eleven-phase roadmap shown in `AGENTS.md`.  If
+you add new functionality, remember to:
 
-tests/__init__.py
-tests/test_search.py
-tests/test_games.py
-tests/test_mdp.py
-tests/test_learning.py
+1. Include unit tests under `tests/`.
+2. Update the documentation when interfaces change.
+3. Run `pytest tests` before submitting changes.
 
-## Phase 9: Applications (depends on core modules)
-
-applications/__init__.py
-applications/pathfinding_demo.py - Uses search module
-applications/game_ai_demo.py - Uses games module
-applications/mdp_robot_navigation.py - Uses MDP module
-applications/reinforcement_learning_trader.py - Uses learning module
-applications/medical_diagnosis_bayes.py - May use multiple modules
-
-## Phase 10: Documentation and Setup
-
-requirements.txt - Can be created early
-setup.py - Package configuration
-README.md - Project overview
-docs/api_reference.md - After implementation
-Other docs/ - Module-specific documentation
-
-## Phase 11: Notebooks (depends on working implementations)
-
-All notebooks/ - Interactive demonstrations
-
-Key Principles I'm Following:
-
-Bottom-up approach: Start with base classes and interfaces
-Resolve dependencies first: Never implement something that depends on unimplemented code
-Test as you go: Implement tests right after the corresponding module
-Documentation last: Write docs after implementation is stable
-
-Critical Dependencies to Remember:
-
-Search algorithms need SearchProblem, Node, and PriorityQueue
-A and Greedy* need heuristic functions
-Game algorithms need GameState base class
-MDP solvers need MDP class definitions
-Q-Learning benefits from understanding MDP structure
-All tests need their corresponding source modules
-Applications need fully working core modules
-
-This order ensures you never hit a "missing dependency" error and can test each component as soon as it's built!
-
-## Usage
-See individual module documentation and notebooks for detailed examples.
+Happy hacking!
