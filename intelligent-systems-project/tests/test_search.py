@@ -1,521 +1,483 @@
 """
-Comprehensive Test Suite for Search Algorithms
-
-Tests all search algorithms including BFS, DFS, UCS, A*, Greedy Best-First,
-and Iterative Deepening on various problem types. Validates correctness,
-optimality, completeness, and performance characteristics.
-
-Based on CS 5368 Week 1-4 material on search strategies.
+Comprehensive test suite for search module
+Tests all search algorithms and utility classes
 """
 
-import unittest
+import pytest
 import sys
 import os
-sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'src'))
+from typing import List, Tuple, Any
+import math
 
-from search import (
+# Add parent directory to path
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+from src.search import (
+    SearchProblem, GridSearchProblem, SearchAgent,
     BreadthFirstSearch, DepthFirstSearch, UniformCostSearch,
     AStarSearch, GreedyBestFirstSearch, IterativeDeepeningSearch,
-    SearchProblem, GridSearchProblem,
-    manhattan_distance, euclidean_distance, GridHeuristic,
-    Node
+    Node, PriorityQueue,
+    manhattan_distance, euclidean_distance, chebyshev_distance,
+    null_heuristic, GridHeuristic
 )
 
-class SimpleSearchProblem(SearchProblem):
-    """
-    Simple linear search problem for testing basic functionality.
-    States are integers 0 to goal, actions move +1 or +2.
-    """
+
+# Test Problems
+class SimpleProblem(SearchProblem):
+    """Simple graph problem for testing"""
     
-    def __init__(self, goal=5):
-        """Initialize with goal state (default 5)."""
+    def __init__(self, graph, start, goal):
+        self.graph = graph
+        self.start = start
         self.goal = goal
     
     def get_start_state(self):
-        """Start at state 0."""
-        return 0
+        return self.start
     
     def is_goal_state(self, state):
-        """Goal is reaching the target number."""
         return state == self.goal
     
     def get_successors(self, state):
-        """Can move +1 (cost 1) or +2 (cost 2) if not exceeding goal."""
-        successors = []
-        if state + 1 <= self.goal:
-            successors.append((state + 1, '+1', 1))
-        if state + 2 <= self.goal:
-            successors.append((state + 2, '+2', 2))
-        return successors
+        return self.graph.get(state, [])
+    
+    def get_cost_of_actions(self, actions):
+        return len(actions)
 
-class TestSearchProblemInterface(unittest.TestCase):
-    """Test the SearchProblem base class and problem formulation."""
-    
-    def setUp(self):
-        """Set up test fixtures with simple and grid problems."""
-        self.simple_problem = SimpleSearchProblem(goal=3)
-        
-        # 3x3 grid with obstacle in middle
-        self.grid = [
-            [0, 0, 0],
-            [0, 1, 0],  # 1 = obstacle
-            [0, 0, 0]
-        ]
-        self.grid_problem = GridSearchProblem(self.grid, (0, 0), (2, 2))
-    
-    def test_simple_problem_interface(self):
-        """Test that simple problem implements required interface correctly."""
-        # Test start state
-        self.assertEqual(self.simple_problem.get_start_state(), 0)
-        
-        # Test goal test
-        self.assertFalse(self.simple_problem.is_goal_state(0))
-        self.assertTrue(self.simple_problem.is_goal_state(3))
-        
-        # Test successors format: (state, action, cost)
-        successors = self.simple_problem.get_successors(1)
-        self.assertEqual(len(successors), 2)
-        self.assertIn((2, '+1', 1), successors)
-        self.assertIn((3, '+2', 2), successors)
-    
-    def test_grid_problem_interface(self):
-        """Test that grid problem implements interface correctly."""
-        # Test start and goal
-        self.assertEqual(self.grid_problem.get_start_state(), (0, 0))
-        self.assertTrue(self.grid_problem.is_goal_state((2, 2)))
-        
-        # Test successors respect grid boundaries and obstacles
-        successors = self.grid_problem.get_successors((0, 0))
-        successor_states = [s[0] for s in successors]
-        self.assertIn((0, 1), successor_states)  # East
-        self.assertIn((1, 0), successor_states)  # South
-        self.assertEqual(len(successors), 2)  # Only 2 valid moves from corner
-        
-        # Test obstacle avoidance
-        successors = self.grid_problem.get_successors((1, 0))
-        successor_states = [s[0] for s in successors]
-        self.assertNotIn((1, 1), successor_states)  # Should avoid obstacle
 
-class TestBreadthFirstSearch(unittest.TestCase):
-    """Test BFS algorithm for completeness, optimality, and correctness."""
+class TestSearchProblem:
+    """Test SearchProblem base class and implementations"""
     
-    def setUp(self):
-        """Set up test problems and BFS instance."""
-        self.bfs = BreadthFirstSearch()
-        self.simple_problem = SimpleSearchProblem(goal=4)
+    def test_grid_search_problem_initialization(self):
+        """Test GridSearchProblem initialization"""
+        grid = [[0, 0, 1], [0, 1, 0], [0, 0, 0]]
+        problem = GridSearchProblem(grid, (0, 0), (2, 2))
         
-        # Grid with multiple paths to test shortest path finding
-        self.grid = [
+        assert problem.get_start_state() == (0, 0)
+        assert problem.is_goal_state((2, 2)) == True
+        assert problem.is_goal_state((0, 0)) == False
+    
+    def test_grid_successors_basic(self):
+        """Test basic successor generation"""
+        grid = [[0, 0], [0, 0]]
+        problem = GridSearchProblem(grid, (0, 0), (1, 1))
+        
+        successors = problem.get_successors((0, 0))
+        states = [s[0] for s in successors]
+        
+        assert (1, 0) in states  # DOWN
+        assert (0, 1) in states  # RIGHT
+        assert len(states) == 2
+    
+    def test_grid_successors_with_obstacles(self):
+        """Test successor generation with obstacles"""
+        grid = [[0, 1], [0, 0]]
+        problem = GridSearchProblem(grid, (0, 0), (1, 1))
+        
+        successors = problem.get_successors((0, 0))
+        states = [s[0] for s in successors]
+        
+        assert (0, 1) not in states  # Blocked by obstacle
+        assert (1, 0) in states
+    
+    def test_grid_successors_boundary(self):
+        """Test successor generation at boundaries"""
+        grid = [[0, 0], [0, 0]]
+        problem = GridSearchProblem(grid, (0, 0), (1, 1))
+        
+        # Corner position
+        successors = problem.get_successors((1, 1))
+        states = [s[0] for s in successors]
+        
+        assert (0, 1) in states  # UP
+        assert (1, 0) in states  # LEFT
+        assert len(states) == 2
+    
+    def test_cost_of_actions(self):
+        """Test action cost calculation"""
+        grid = [[0, 0], [0, 0]]
+        problem = GridSearchProblem(grid, (0, 0), (1, 1))
+        
+        actions = ['DOWN', 'RIGHT']
+        cost = problem.get_cost_of_actions(actions)
+        assert cost == 2
+
+
+class TestSearchAlgorithms:
+    """Test all search algorithm implementations"""
+    
+    @pytest.fixture
+    def simple_graph(self):
+        """Create a simple test graph"""
+        return {
+            'A': [('B', 'go_B', 1), ('C', 'go_C', 2)],
+            'B': [('D', 'go_D', 3)],
+            'C': [('D', 'go_D', 1)],
+            'D': []
+        }
+    
+    @pytest.fixture
+    def grid_maze(self):
+        """Create a grid maze for testing"""
+        grid = [
             [0, 0, 0, 0],
             [0, 1, 1, 0],
+            [0, 0, 0, 0],
             [0, 0, 0, 0]
         ]
-        self.grid_problem = GridSearchProblem(self.grid, (0, 0), (2, 3))
+        return GridSearchProblem(grid, (0, 0), (3, 3))
     
-    def test_bfs_finds_solution(self):
-        """Test that BFS finds a valid solution when one exists."""
-        solution = self.bfs.search(self.simple_problem)
-        
-        # Should find a solution
-        self.assertIsNotNone(solution)
-        self.assertIsInstance(solution, list)
-        
-        # Verify solution leads to goal by simulating execution
-        state = self.simple_problem.get_start_state()
-        for action in solution:
-            successors = self.simple_problem.get_successors(state)
-            next_states = {a: s for s, a, c in successors}
-            self.assertIn(action, next_states)
-            state = next_states[action]
-        
-        self.assertTrue(self.simple_problem.is_goal_state(state))
-    
-    def test_bfs_optimal_path_length(self):
-        """Test that BFS finds shortest path in terms of number of steps."""
-        solution = self.bfs.search(self.simple_problem)
-        
-        # For goal=4, optimal is ['+2', '+2'] (2 steps) not ['+1','+1','+1','+1'] (4 steps)
-        self.assertEqual(len(solution), 2)
-        self.assertEqual(solution, ['+2', '+2'])
-    
-    def test_bfs_grid_shortest_path(self):
-        """Test BFS finds shortest path in grid world."""
-        solution = self.bfs.search(self.grid_problem)
-        
-        # Should find solution and it should be reasonably short
-        self.assertIsNotNone(solution)
-        # Shortest path should be 5 moves: right, right, right, down, down
-        self.assertEqual(len(solution), 5)
-    
-    def test_bfs_no_solution(self):
-        """Test BFS returns None when no solution exists."""
-        # Create impossible grid problem
-        impossible_grid = [
-            [0, 1],
-            [1, 0]  # Goal at (1,1) unreachable due to obstacles
-        ]
-        impossible_problem = GridSearchProblem(impossible_grid, (0, 0), (1, 1))
-        
-        solution = self.bfs.search(impossible_problem)
-        self.assertIsNone(solution)
-    
-    def test_bfs_nodes_expanded_tracking(self):
-        """Test that BFS correctly tracks number of nodes expanded."""
-        self.bfs.search(self.simple_problem)
-        
-        # Should have expanded some nodes (at least start state)
-        self.assertGreater(self.bfs.nodes_expanded, 0)
-        # For simple problem with goal=4, should expand states 0,1,2,3,4
-        self.assertLessEqual(self.bfs.nodes_expanded, 5)
-
-class TestDepthFirstSearch(unittest.TestCase):
-    """Test DFS algorithm behavior, noting it's not optimal but space-efficient."""
-    
-    def setUp(self):
-        """Set up test problems and DFS instance."""
-        self.dfs = DepthFirstSearch()
-        self.simple_problem = SimpleSearchProblem(goal=3)
-        
-        # Small grid to avoid infinite paths
-        self.grid = [
-            [0, 0, 0],
-            [0, 1, 0],
-            [0, 0, 0]
-        ]
-        self.grid_problem = GridSearchProblem(self.grid, (0, 0), (2, 2))
-    
-    def test_dfs_finds_solution(self):
-        """Test that DFS finds a valid solution (may not be optimal)."""
-        solution = self.dfs.search(self.simple_problem)
-        
-        # Should find some solution
-        self.assertIsNotNone(solution)
-        
-        # Verify solution validity
-        state = self.simple_problem.get_start_state()
-        for action in solution:
-            successors = self.simple_problem.get_successors(state)
-            next_states = {a: s for s, a, c in successors}
-            state = next_states[action]
-        
-        self.assertTrue(self.simple_problem.is_goal_state(state))
-    
-    def test_dfs_may_not_be_optimal(self):
-        """Test that DFS may find suboptimal solutions."""
-        solution = self.dfs.search(self.simple_problem)
-        
-        # DFS might find ['+1', '+1', '+1'] instead of optimal ['+2', '+1']
-        # We just verify it's a valid solution, not necessarily optimal
-        self.assertIsNotNone(solution)
-        self.assertGreaterEqual(len(solution), 2)  # At least as long as optimal
-    
-    def test_dfs_grid_navigation(self):
-        """Test DFS can navigate grid problems."""
-        solution = self.dfs.search(self.grid_problem)
-        
-        # Should find some path (may be longer than BFS)
-        self.assertIsNotNone(solution)
-        self.assertGreater(len(solution), 0)
-
-class TestUniformCostSearch(unittest.TestCase):
-    """Test UCS algorithm for optimality with varying step costs."""
-    
-    def setUp(self):
-        """Set up UCS instance and problems with different costs."""
-        self.ucs = UniformCostSearch()
-        self.simple_problem = SimpleSearchProblem(goal=4)
-        
-        # Grid problem (uniform costs)
-        self.grid = [[0, 0, 0], [0, 1, 0], [0, 0, 0]]
-        self.grid_problem = GridSearchProblem(self.grid, (0, 0), (2, 2))
-    
-    def test_ucs_optimal_cost(self):
-        """Test that UCS finds minimum cost solution."""
-        solution = self.ucs.search(self.simple_problem)
-        
-        # Should find optimal solution: ['+2', '+2'] with cost 4
-        # rather than ['+1', '+1', '+1', '+1'] with cost 4
-        # or ['+1', '+2', '+1'] with cost 4
-        self.assertIsNotNone(solution)
-        
-        # Calculate total cost
-        total_cost = 0
-        state = self.simple_problem.get_start_state()
-        for action in solution:
-            successors = self.simple_problem.get_successors(state)
-            for s, a, c in successors:
-                if a == action:
-                    total_cost += c
-                    state = s
-                    break
-        
-        # Should find minimum cost path
-        self.assertEqual(total_cost, 4)  # Optimal cost to reach goal 4
-    
-    def test_ucs_vs_bfs_same_result_uniform_costs(self):
-        """Test UCS gives same result as BFS when all costs are equal."""
+    def test_bfs_finds_shortest_path(self, simple_graph):
+        """Test BFS finds shortest path (by steps)"""
+        problem = SimpleProblem(simple_graph, 'A', 'D')
         bfs = BreadthFirstSearch()
+        solution = bfs.search(problem)
         
-        ucs_solution = self.ucs.search(self.grid_problem)
-        bfs_solution = bfs.search(self.grid_problem)
-        
-        # Both should find optimal solutions of same length
-        self.assertEqual(len(ucs_solution), len(bfs_solution))
-
-class TestAStarSearch(unittest.TestCase):
-    """Test A* algorithm with various heuristics for optimality and efficiency."""
+        assert solution == ['go_C', 'go_D']  # Shortest by steps
+        assert bfs.nodes_expanded > 0
     
-    def setUp(self):
-        """Set up A* instances with different heuristics."""
-        # Manhattan heuristic for grid problems
-        def manhattan_heuristic(state, problem):
-            if hasattr(problem, 'goal'):
-                return manhattan_distance(state, problem.goal)
-            return 0
+    def test_bfs_on_grid(self, grid_maze):
+        """Test BFS on grid problem"""
+        bfs = BreadthFirstSearch()
+        solution = bfs.search(grid_maze)
         
-        self.astar_manhattan = AStarSearch(manhattan_heuristic)
-        self.astar_null = AStarSearch()  # No heuristic (reduces to UCS)
-        
-        # Grid problem for testing
-        self.grid = [[0, 0, 0, 0], [0, 1, 1, 0], [0, 0, 0, 0]]
-        self.grid_problem = GridSearchProblem(self.grid, (0, 0), (2, 3))
+        assert solution is not None
+        assert len(solution) == 6  # Optimal path length
+        assert all(action in ['UP', 'DOWN', 'LEFT', 'RIGHT'] for action in solution)
     
-    def test_astar_with_admissible_heuristic_optimal(self):
-        """Test A* with admissible heuristic finds optimal solution."""
-        solution = self.astar_manhattan.search(self.grid_problem)
+    def test_dfs_finds_solution(self, simple_graph):
+        """Test DFS finds a solution (may not be optimal)"""
+        problem = SimpleProblem(simple_graph, 'A', 'D')
+        dfs = DepthFirstSearch()
+        solution = dfs.search(problem)
         
-        # Should find optimal solution
-        self.assertIsNotNone(solution)
-        
-        # Compare with UCS (should get same cost)
-        ucs = UniformCostSearch()
-        ucs_solution = ucs.search(self.grid_problem)
-        
-        self.assertEqual(len(solution), len(ucs_solution))
+        assert solution is not None
+        assert dfs.nodes_expanded > 0
     
-    def test_astar_efficiency_vs_ucs(self):
-        """Test that A* with good heuristic explores fewer nodes than UCS."""
-        # Run both algorithms
-        self.astar_manhattan.search(self.grid_problem)
+    def test_dfs_on_grid(self, grid_maze):
+        """Test DFS on grid problem"""
+        dfs = DepthFirstSearch()
+        solution = dfs.search(grid_maze)
         
-        ucs = UniformCostSearch()
-        ucs.search(self.grid_problem)
-        
-        # A* should explore fewer or equal nodes due to heuristic guidance
-        self.assertLessEqual(self.astar_manhattan.nodes_expanded, ucs.nodes_expanded + 2)
+        assert solution is not None
+        # DFS may not find optimal path
+        assert len(solution) >= 6
     
-    def test_astar_null_heuristic_equals_ucs(self):
-        """Test A* with null heuristic behaves like UCS."""
-        astar_solution = self.astar_null.search(self.grid_problem)
+    def test_ucs_finds_optimal_cost(self):
+        """Test UCS finds path with minimum cost"""
+        graph = {
+            'A': [('B', 'expensive', 10), ('C', 'cheap', 1)],
+            'B': [('D', 'to_D', 1)],
+            'C': [('B', 'to_B', 1), ('D', 'to_D', 10)],
+            'D': []
+        }
+        problem = SimpleProblem(graph, 'A', 'D')
         
         ucs = UniformCostSearch()
-        ucs_solution = ucs.search(self.grid_problem)
+        solution = ucs.search(problem)
         
-        # Should find same length solution
-        self.assertEqual(len(astar_solution), len(ucs_solution))
+        # Should take A->C->B->D (cost 3) not A->B->D (cost 11)
+        assert solution == ['cheap', 'to_B', 'to_D']
     
-    def test_astar_inadmissible_heuristic_still_finds_solution(self):
-        """Test A* with inadmissible heuristic still finds valid solution."""
-        # Inadmissible heuristic (overestimates)
-        def bad_heuristic(state, problem):
-            return manhattan_distance(state, problem.goal) * 10
+    def test_ucs_on_grid(self, grid_maze):
+        """Test UCS on uniform cost grid"""
+        ucs = UniformCostSearch()
+        solution = ucs.search(grid_maze)
         
-        astar_bad = AStarSearch(bad_heuristic)
-        solution = astar_bad.search(self.grid_problem)
-        
-        # Should still find a solution (just not guaranteed optimal)
-        self.assertIsNotNone(solution)
-
-class TestGreedyBestFirstSearch(unittest.TestCase):
-    """Test Greedy Best-First Search behavior (fast but not optimal)."""
+        assert solution is not None
+        assert len(solution) == 6  # Should find optimal
     
-    def setUp(self):
-        """Set up Greedy search with Manhattan heuristic."""
-        def manhattan_heuristic(state, problem):
+    def test_astar_with_null_heuristic(self, grid_maze):
+        """Test A* with null heuristic (should behave like UCS)"""
+        astar = AStarSearch(null_heuristic)
+        solution = astar.search(grid_maze)
+        
+        assert solution is not None
+        assert len(solution) == 6
+    
+    def test_astar_with_manhattan(self, grid_maze):
+        """Test A* with Manhattan heuristic"""
+        def manhattan_h(state, problem):
             return manhattan_distance(state, problem.goal)
         
-        self.greedy = GreedyBestFirstSearch(manhattan_heuristic)
+        astar = AStarSearch(manhattan_h)
+        solution = astar.search(grid_maze)
         
-        # Grid problem
-        self.grid = [[0, 0, 0], [0, 1, 0], [0, 0, 0]]
-        self.grid_problem = GridSearchProblem(self.grid, (0, 0), (2, 2))
+        assert solution is not None
+        assert len(solution) == 6
+        assert astar.nodes_expanded > 0
     
-    def test_greedy_finds_solution(self):
-        """Test Greedy search finds valid solution."""
-        solution = self.greedy.search(self.grid_problem)
+    def test_astar_faster_than_ucs(self, grid_maze):
+        """Test that A* with good heuristic expands fewer nodes than UCS"""
+        def manhattan_h(state, problem):
+            return manhattan_distance(state, problem.goal)
         
-        self.assertIsNotNone(solution)
+        ucs = UniformCostSearch()
+        astar = AStarSearch(manhattan_h)
         
-        # Verify solution validity
-        state = self.grid_problem.get_start_state()
-        for action in solution:
-            successors = self.grid_problem.get_successors(state)
-            next_states = {a: s for s, a, c in successors}
-            state = next_states[action]
+        ucs.search(grid_maze)
+        astar.search(grid_maze)
         
-        self.assertTrue(self.grid_problem.is_goal_state(state))
+        # A* should expand fewer nodes with a good heuristic
+        assert astar.nodes_expanded <= ucs.nodes_expanded
     
-    def test_greedy_may_be_suboptimal(self):
-        """Test that Greedy search may find suboptimal solutions."""
-        solution = self.greedy.search(self.grid_problem)
+    def test_greedy_best_first(self, grid_maze):
+        """Test Greedy Best-First Search"""
+        def manhattan_h(state, problem):
+            return manhattan_distance(state, problem.goal)
         
-        # Compare with optimal (BFS)
+        greedy = GreedyBestFirstSearch(manhattan_h)
+        solution = greedy.search(grid_maze)
+        
+        assert solution is not None
+        # Greedy may not find optimal path
+        assert len(solution) >= 6
+    
+    def test_iterative_deepening(self, grid_maze):
+        """Test Iterative Deepening Search"""
+        ids = IterativeDeepeningSearch()
+        solution = ids.search(grid_maze, max_depth=10)
+        
+        assert solution is not None
+        assert len(solution) == 6  # Should find optimal
+    
+    def test_no_solution_exists(self):
+        """Test algorithms handle unsolvable problems"""
+        grid = [
+            [0, 1, 0],
+            [1, 1, 1],
+            [0, 1, 0]
+        ]
+        problem = GridSearchProblem(grid, (0, 0), (2, 2))
+        
         bfs = BreadthFirstSearch()
-        optimal_solution = bfs.search(self.grid_problem)
-        
-        # Greedy may find longer path due to heuristic misleading it
-        self.assertGreaterEqual(len(solution), len(optimal_solution))
-
-class TestIterativeDeepeningSearch(unittest.TestCase):
-    """Test Iterative Deepening Search for optimality with space efficiency."""
+        solution = bfs.search(problem)
+        assert solution is None
     
-    def setUp(self):
-        """Set up IDS instance and test problems."""
-        self.ids = IterativeDeepeningSearch()
-        self.simple_problem = SimpleSearchProblem(goal=3)
-        
-        # Small grid to test depth limits
-        self.grid = [[0, 0, 0], [0, 1, 0], [0, 0, 0]]
-        self.grid_problem = GridSearchProblem(self.grid, (0, 0), (2, 2))
-    
-    def test_ids_finds_optimal_solution(self):
-        """Test IDS finds optimal solution like BFS."""
-        solution = self.ids.search(self.simple_problem)
-        
-        # Should find optimal solution
-        self.assertIsNotNone(solution)
-        
-        # Compare with BFS
-        bfs = BreadthFirstSearch()
-        bfs_solution = bfs.search(self.simple_problem)
-        
-        self.assertEqual(len(solution), len(bfs_solution))
-    
-    def test_ids_with_depth_limit(self):
-        """Test IDS respects depth limits."""
-        # Search with very small depth limit
-        solution = self.ids.search(self.simple_problem, max_depth=1)
-        
-        # Should not find solution for goal=3 with depth limit 1
-        self.assertIsNone(solution)
-        
-        # Should find solution with adequate depth
-        solution = self.ids.search(self.simple_problem, max_depth=5)
-        self.assertIsNotNone(solution)
-    
-    def test_ids_space_efficiency(self):
-        """Test that IDS explores nodes multiple times but finds optimal solution."""
-        solution = self.ids.search(self.grid_problem)
-        
-        # Should find solution
-        self.assertIsNotNone(solution)
-        
-        # May explore more nodes than BFS due to repeated exploration
-        # but should find optimal solution
-        bfs = BreadthFirstSearch()
-        bfs_solution = bfs.search(self.grid_problem)
-        
-        self.assertEqual(len(solution), len(bfs_solution))
-
-class TestHeuristicFunctions(unittest.TestCase):
-    """Test heuristic functions for admissibility and consistency."""
-    
-    def test_manhattan_distance_calculation(self):
-        """Test Manhattan distance calculation correctness."""
-        # Test basic cases
-        self.assertEqual(manhattan_distance((0, 0), (0, 0)), 0)
-        self.assertEqual(manhattan_distance((0, 0), (3, 4)), 7)
-        self.assertEqual(manhattan_distance((1, 1), (4, 5)), 7)
-        
-        # Test symmetry
-        self.assertEqual(
-            manhattan_distance((1, 2), (3, 4)),
-            manhattan_distance((3, 4), (1, 2))
+    def test_start_is_goal(self, grid_maze):
+        """Test when start state is goal"""
+        problem = GridSearchProblem(
+            [[0, 0], [0, 0]], 
+            (0, 0), 
+            (0, 0)
         )
-    
-    def test_euclidean_distance_calculation(self):
-        """Test Euclidean distance calculation correctness."""
-        import math
         
-        # Test basic cases
-        self.assertEqual(euclidean_distance((0, 0), (0, 0)), 0)
-        self.assertEqual(euclidean_distance((0, 0), (3, 4)), 5.0)
-        
-        # Test Pythagorean theorem
-        self.assertAlmostEqual(
-            euclidean_distance((0, 0), (1, 1)),
-            math.sqrt(2),
-            places=5
-        )
-    
-    def test_grid_heuristic_admissibility(self):
-        """Test that GridHeuristic is admissible for different movement types."""
-        goal = (5, 5)
-        
-        # 4-way movement heuristic
-        h_4way = GridHeuristic(goal, '4-way')
-        
-        # Test admissibility: h(n) <= actual distance
-        # For 4-way movement, Manhattan distance is admissible
-        test_states = [(0, 0), (2, 3), (5, 0), (3, 5)]
-        
-        for state in test_states:
-            heuristic_value = h_4way(state)
-            actual_manhattan = manhattan_distance(state, goal)
-            
-            # Heuristic should equal Manhattan distance for 4-way
-            self.assertEqual(heuristic_value, actual_manhattan)
-            
-            # Should never overestimate (admissible)
-            self.assertLessEqual(heuristic_value, actual_manhattan)
+        bfs = BreadthFirstSearch()
+        solution = bfs.search(problem)
+        assert solution == []
 
-class TestNodeClass(unittest.TestCase):
-    """Test Node class for search tree representation."""
+
+class TestNode:
+    """Test Node class functionality"""
     
     def test_node_creation(self):
-        """Test basic node creation and attributes."""
-        node = Node(state='A', parent=None, action=None, path_cost=0)
+        """Test basic node creation"""
+        node = Node('A')
         
-        self.assertEqual(node.state, 'A')
-        self.assertIsNone(node.parent)
-        self.assertIsNone(node.action)
-        self.assertEqual(node.path_cost, 0)
-        self.assertEqual(node.depth, 0)
+        assert node.state == 'A'
+        assert node.parent is None
+        assert node.action is None
+        assert node.path_cost == 0
+        assert node.depth == 0
     
-    def test_node_parent_child_relationship(self):
-        """Test parent-child relationships and depth calculation."""
-        parent = Node(state='A', parent=None, action=None, path_cost=0)
-        child = Node(state='B', parent=parent, action='move', path_cost=1)
+    def test_node_with_parent(self):
+        """Test node with parent"""
+        parent = Node('A')
+        child = Node('B', parent, 'move', 5)
         
-        self.assertEqual(child.parent, parent)
-        self.assertEqual(child.action, 'move')
-        self.assertEqual(child.depth, 1)
+        assert child.state == 'B'
+        assert child.parent == parent
+        assert child.action == 'move'
+        assert child.path_cost == 5
+        assert child.depth == 1
     
-    def test_node_solution_path(self):
-        """Test solution path extraction from node."""
-        # Create path: A -> B -> C
-        node_a = Node(state='A', parent=None, action=None, path_cost=0)
-        node_b = Node(state='B', parent=node_a, action='a_to_b', path_cost=1)
-        node_c = Node(state='C', parent=node_b, action='b_to_c', path_cost=2)
+    def test_solution_path(self):
+        """Test solution extraction"""
+        n1 = Node('A')
+        n2 = Node('B', n1, 'go_B', 1)
+        n3 = Node('C', n2, 'go_C', 2)
         
-        # Test solution (action sequence)
-        solution = node_c.solution()
-        self.assertEqual(solution, ['a_to_b', 'b_to_c'])
-        
-        # Test path (state sequence)
-        path = node_c.path()
-        self.assertEqual(path, ['A', 'B', 'C'])
+        assert n3.solution() == ['go_B', 'go_C']
+        assert n3.path() == ['A', 'B', 'C']
     
-    def test_node_equality(self):
-        """Test node equality based on state."""
-        node1 = Node(state='A', path_cost=5)
-        node2 = Node(state='A', path_cost=10)
-        node3 = Node(state='B', path_cost=5)
+    def test_single_node_solution(self):
+        """Test solution for single node"""
+        node = Node('A')
         
-        # Nodes with same state should be equal regardless of cost
-        self.assertEqual(node1, node2)
-        self.assertNotEqual(node1, node3)
+        assert node.solution() == []
+        assert node.path() == ['A']
 
-if __name__ == '__main__':
-    # Run all search algorithm tests
-    unittest.main(verbosity=2)
+
+class TestPriorityQueue:
+    """Test PriorityQueue implementation"""
+    
+    def test_basic_operations(self):
+        """Test basic push and pop"""
+        pq = PriorityQueue()
+        
+        pq.append((5, 'A'))
+        pq.append((2, 'B'))
+        pq.append((8, 'C'))
+        
+        assert len(pq) == 3
+        assert pq.pop() == (2, 'B')
+        assert pq.pop() == (5, 'A')
+        assert pq.pop() == (8, 'C')
+        assert len(pq) == 0
+    
+    def test_custom_priority_function(self):
+        """Test with custom priority function"""
+        pq = PriorityQueue(order='max', f=lambda x: x[0])
+        
+        pq.append((5, 'A'))
+        pq.append((2, 'B'))
+        pq.append((8, 'C'))
+        
+        assert pq.pop() == (8, 'C')  # Max priority first
+    
+    def test_contains_operation(self):
+        """Test membership checking"""
+        pq = PriorityQueue(f=lambda x: x[0])
+        
+        pq.append((5, 'A'))
+        
+        assert 'A' in pq
+        assert 'B' not in pq
+        
+        pq.pop()
+        assert 'A' not in pq
+
+
+class TestHeuristics:
+    """Test heuristic functions"""
+    
+    def test_manhattan_distance(self):
+        """Test Manhattan distance calculation"""
+        assert manhattan_distance((0, 0), (3, 4)) == 7
+        assert manhattan_distance((1, 1), (1, 1)) == 0
+        assert manhattan_distance((-1, -1), (1, 1)) == 4
+    
+    def test_euclidean_distance(self):
+        """Test Euclidean distance calculation"""
+        assert euclidean_distance((0, 0), (3, 4)) == 5.0
+        assert euclidean_distance((1, 1), (1, 1)) == 0.0
+        assert abs(euclidean_distance((0, 0), (1, 1)) - math.sqrt(2)) < 0.001
+    
+    def test_chebyshev_distance(self):
+        """Test Chebyshev distance calculation"""
+        assert chebyshev_distance((0, 0), (3, 4)) == 4
+        assert chebyshev_distance((1, 1), (1, 1)) == 0
+        assert chebyshev_distance((-2, -2), (2, 2)) == 4
+    
+    def test_null_heuristic(self):
+        """Test null heuristic always returns 0"""
+        assert null_heuristic('any_state') == 0
+        assert null_heuristic((1, 2, 3)) == 0
+        assert null_heuristic(None) == 0
+    
+    def test_grid_heuristic(self):
+        """Test GridHeuristic class"""
+        goal = (5, 5)
+        
+        # 4-way movement
+        h4 = GridHeuristic(goal, '4-way')
+        assert h4((0, 0)) == manhattan_distance((0, 0), goal)
+        
+        # 8-way movement
+        h8 = GridHeuristic(goal, '8-way')
+        assert h8((0, 0)) == chebyshev_distance((0, 0), goal)
+        
+        # Continuous movement
+        hc = GridHeuristic(goal, 'continuous')
+        assert hc((0, 0)) == euclidean_distance((0, 0), goal)
+    
+    def test_heuristic_admissibility(self):
+        """Test that heuristics are admissible for appropriate movement"""
+        # For 4-directional movement, Manhattan is admissible
+        grid = [[0, 0, 0], [0, 0, 0], [0, 0, 0]]
+        problem = GridSearchProblem(grid, (0, 0), (2, 2))
+        
+        # Manhattan should never overestimate
+        for i in range(3):
+            for j in range(3):
+                h_value = manhattan_distance((i, j), (2, 2))
+                # Actual shortest path in 4-directional movement
+                actual = abs(i - 2) + abs(j - 2)
+                assert h_value <= actual + 0.001
+
+
+class TestComplexScenarios:
+    """Test complex scenarios and edge cases"""
+    
+    def test_large_grid(self):
+        """Test algorithms on larger grid"""
+        size = 10
+        grid = [[0] * size for _ in range(size)]
+        # Add some obstacles
+        for i in range(1, size-1):
+            grid[i][size//2] = 1
+        grid[size//2][size//2] = 0  # Opening in wall
+        
+        problem = GridSearchProblem(grid, (0, 0), (size-1, size-1))
+        
+        bfs = BreadthFirstSearch()
+        solution = bfs.search(problem)
+        assert solution is not None
+    
+    def test_multiple_optimal_paths(self):
+        """Test when multiple optimal paths exist"""
+        grid = [
+            [0, 0, 0],
+            [0, 0, 0],
+            [0, 0, 0]
+        ]
+        problem = GridSearchProblem(grid, (0, 0), (2, 2))
+        
+        # All algorithms should find an optimal path
+        for Algorithm in [BreadthFirstSearch, UniformCostSearch, AStarSearch]:
+            if Algorithm == AStarSearch:
+                agent = Algorithm(lambda s, p: manhattan_distance(s, p.goal))
+            else:
+                agent = Algorithm()
+            
+            solution = agent.search(problem)
+            assert len(solution) == 4  # Optimal length
+    
+    def test_variable_costs(self):
+        """Test UCS and A* with variable edge costs"""
+        class VariableCostProblem(SearchProblem):
+            def __init__(self):
+                self.graph = {
+                    'A': [('B', 'cheap', 1), ('C', 'expensive', 10)],
+                    'B': [('D', 'normal', 5)],
+                    'C': [('D', 'cheap', 1)],
+                    'D': []
+                }
+            
+            def get_start_state(self):
+                return 'A'
+            
+            def is_goal_state(self, state):
+                return state == 'D'
+            
+            def get_successors(self, state):
+                return self.graph.get(state, [])
+        
+        problem = VariableCostProblem()
+        
+        # UCS should find cheapest path
+        ucs = UniformCostSearch()
+        solution = ucs.search(problem)
+        assert solution == ['cheap', 'normal']  # A->B->D, cost 6
+        
+        # A* with admissible heuristic should also find optimal
+        def h(state, problem):
+            distances = {'A': 2, 'B': 1, 'C': 1, 'D': 0}
+            return distances.get(state, 0)
+        
+        astar = AStarSearch(h)
+        solution = astar.search(problem)
+        assert solution == ['cheap', 'normal']
+
+
+if __name__ == "__main__":
+    pytest.main([__file__, "-v"])

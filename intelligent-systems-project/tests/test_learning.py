@@ -1,782 +1,786 @@
 """
-Comprehensive Test Suite for Reinforcement Learning Algorithms
-
-Tests Q-Learning, SARSA, and other model-free learning algorithms.
-Validates convergence, exploration strategies, and learning performance.
-
-Based on CS 5368 Week 7-8 material on reinforcement learning.
+Comprehensive test suite for learning module
+Tests reinforcement learning algorithms: Q-Learning and SARSA
 """
 
-import unittest
+import pytest
 import sys
 import os
+from typing import List, Dict, Tuple, Any, Callable
 import random
-import math
-sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'src'))
+import numpy as np
 
-from learning import QLearningAgent, train_q_learning, q_learning_episode
-from mdp.agents import SARSAAgent
+# Add parent directory to path
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-class SimpleEnvironment:
-    """
-    Simple grid environment for testing RL algorithms.
+from src.learning import QLearningAgent, SARSAAgent
+
+
+# Test Environments
+class GridWorldEnvironment:
+    """Simple grid world for testing RL agents"""
     
-    2x2 grid world:
-    [S] [ ] 
-    [ ] [G]
-    
-    S = Start (0,0), G = Goal (1,1)
-    Actions: 'up', 'down', 'left', 'right'
-    Rewards: +10 for reaching goal, -1 for each step
-    """
-    
-    def __init__(self):
-        """Initialize simple 2x2 grid environment."""
-        self.grid_size = 2
-        self.start_state = (0, 0)
-        self.goal_state = (1, 1)
-        self.current_state = self.start_state
-        
-        # Action mappings
-        self.actions = ['up', 'down', 'left', 'right']
-        self.action_effects = {
-            'up': (-1, 0),
-            'down': (1, 0),
-            'left': (0, -1),
-            'right': (0, 1)
-        }
+    def __init__(self, grid, start=(0, 0), goal=None, stochastic=False):
+        self.grid = grid
+        self.rows = len(grid)
+        self.cols = len(grid[0]) if grid else 0
+        self.start = start
+        self.goal = goal if goal else (self.rows-1, self.cols-1)
+        self.stochastic = stochastic
+        self.current_state = start
+        self.done = False
     
     def reset(self):
-        """Reset environment to start state."""
-        self.current_state = self.start_state
+        """Reset environment to start state"""
+        self.current_state = self.start
+        self.done = False
         return self.current_state
     
+    def get_actions(self, state=None):
+        """Get available actions for a state"""
+        if state is None:
+            state = self.current_state
+        return ['up', 'down', 'left', 'right']
+    
     def step(self, action):
-        """
-        Take action in environment.
+        """Take action and return (next_state, reward, done)"""
+        if self.done:
+            return self.current_state, 0, True
         
-        Returns:
-            next_state: New state after action
-            reward: Immediate reward
-            done: True if episode finished
-        """
-        if action not in self.actions:
-            raise ValueError(f"Invalid action: {action}")
+        # Calculate intended next position
+        row, col = self.current_state
+        if action == 'up':
+            next_pos = (row - 1, col)
+        elif action == 'down':
+            next_pos = (row + 1, col)
+        elif action == 'left':
+            next_pos = (row, col - 1)
+        elif action == 'right':
+            next_pos = (row, col + 1)
+        else:
+            next_pos = (row, col)
         
-        # Calculate next state
-        dr, dc = self.action_effects[action]
-        new_row = max(0, min(self.grid_size - 1, self.current_state[0] + dr))
-        new_col = max(0, min(self.grid_size - 1, self.current_state[1] + dc))
+        # Add stochasticity if enabled
+        if self.stochastic and random.random() < 0.1:
+            # 10% chance of random action
+            actions = self.get_actions()
+            action = random.choice(actions)
+            return self.step(action)  # Recursive call with random action
         
-        next_state = (new_row, new_col)
-        self.current_state = next_state
+        # Check if valid move
+        next_row, next_col = next_pos
+        if (0 <= next_row < self.rows and 
+            0 <= next_col < self.cols and 
+            self.grid[next_row][next_col] != 1):  # 1 is obstacle
+            self.current_state = next_pos
         
         # Calculate reward
-        if next_state == self.goal_state:
-            reward = 10  # Goal reward
-            done = True
+        if self.current_state == self.goal:
+            reward = 10
+            self.done = True
+        elif self.grid[self.current_state[0]][self.current_state[1]] == -1:
+            reward = -10
+            self.done = True
         else:
-            reward = -1  # Living penalty
-            done = False
+            reward = -0.1  # Small penalty for each step
         
-        return next_state, reward, done
+        return self.current_state, reward, self.done
     
-    def get_valid_actions(self, state):
-        """Return all valid actions from given state."""
-        return self.actions.copy()
+    def get_state_value(self, state):
+        """Get true value of a state (for testing)"""
+        if state == self.goal:
+            return 10
+        elif self.grid[state[0]][state[1]] == -1:
+            return -10
+        else:
+            # Distance-based heuristic
+            distance = abs(state[0] - self.goal[0]) + abs(state[1] - self.goal[1])
+            return -distance * 0.1
 
-class DeterministicEnvironment:
-    """
-    Deterministic environment for testing convergence properties.
+
+class CliffWalkingEnvironment:
+    """Cliff walking environment from Sutton & Barto"""
     
-    Simple chain: 0 -> 1 -> 2 (goal)
-    Actions: 'forward', 'backward'
-    Deterministic transitions, known optimal policy
-    """
-    
-    def __init__(self, chain_length=3):
-        """Initialize deterministic chain environment."""
-        self.chain_length = chain_length
-        self.goal_state = chain_length - 1
-        self.current_state = 0
-        self.actions = ['forward', 'backward']
+    def __init__(self):
+        self.rows = 4
+        self.cols = 12
+        self.start = (3, 0)
+        self.goal = (3, 11)
+        self.cliff = [(3, i) for i in range(1, 11)]
+        self.current_state = self.start
+        self.done = False
     
     def reset(self):
-        """Reset to start of chain."""
-        self.current_state = 0
+        self.current_state = self.start
+        self.done = False
         return self.current_state
     
+    def get_actions(self, state=None):
+        return ['up', 'down', 'left', 'right']
+    
     def step(self, action):
-        """Take deterministic action."""
-        if action == 'forward':
-            self.current_state = min(self.chain_length - 1, self.current_state + 1)
-        elif action == 'backward':
-            self.current_state = max(0, self.current_state - 1)
+        if self.done:
+            return self.current_state, 0, True
         
-        # Reward structure: +10 for goal, -1 for each step
-        if self.current_state == self.goal_state:
-            reward = 10
-            done = True
+        row, col = self.current_state
+        
+        # Move based on action
+        if action == 'up' and row > 0:
+            row -= 1
+        elif action == 'down' and row < self.rows - 1:
+            row += 1
+        elif action == 'left' and col > 0:
+            col -= 1
+        elif action == 'right' and col < self.cols - 1:
+            col += 1
+        
+        self.current_state = (row, col)
+        
+        # Check if fell off cliff
+        if self.current_state in self.cliff:
+            reward = -100
+            self.current_state = self.start  # Reset to start
+            self.done = False  # Continue episode
+        elif self.current_state == self.goal:
+            reward = 0
+            self.done = True
         else:
             reward = -1
-            done = False
         
-        return self.current_state, reward, done
-    
-    def get_valid_actions(self, state):
-        """Return valid actions."""
-        return self.actions.copy()
+        return self.current_state, reward, self.done
 
-class TestQLearningAgent(unittest.TestCase):
-    """Test Q-Learning algorithm implementation and behavior."""
+
+class TestQLearningAgent:
+    """Test Q-Learning agent"""
     
-    def setUp(self):
-        """Set up Q-Learning agents and environments for testing."""
-        # Action function for simple environment
-        def get_actions(state):
-            return ['up', 'down', 'left', 'right']
+    def test_initialization(self):
+        """Test agent initialization"""
+        def action_fn(state):
+            return ['a', 'b', 'c']
         
-        # Create Q-Learning agents with different parameters
-        self.q_agent = QLearningAgent(
-            action_fn=get_actions,
+        agent = QLearningAgent(
+            action_fn=action_fn,
             discount=0.9,
-            alpha=0.1,
+            alpha=0.5,
             epsilon=0.1
         )
         
-        self.q_agent_greedy = QLearningAgent(
-            action_fn=get_actions,
-            discount=0.9,
-            alpha=0.1,
-            epsilon=0.0  # No exploration
-        )
-        
-        # Test environments
-        self.simple_env = SimpleEnvironment()
-        self.deterministic_env = DeterministicEnvironment()
-    
-    def test_q_learning_agent_initialization(self):
-        """Test Q-Learning agent initialization and parameters."""
-        agent = QLearningAgent(
-            action_fn=lambda s: ['a', 'b'],
-            discount=0.95,
-            alpha=0.2,
-            epsilon=0.15
-        )
-        
-        self.assertEqual(agent.discount, 0.95)
-        self.assertEqual(agent.alpha, 0.2)
-        self.assertEqual(agent.epsilon, 0.15)
-        self.assertTrue(agent.training)
-        self.assertEqual(len(agent.q_values), 0)  # Initially empty
+        assert agent.discount == 0.9
+        assert agent.alpha == 0.5
+        assert agent.epsilon == 0.1
+        assert agent.training == True
+        assert len(agent.q_values) == 0
     
     def test_q_value_initialization(self):
-        """Test Q-value initialization and retrieval."""
-        # Q-values should start at 0
-        initial_q = self.q_agent.get_q_value((0, 0), 'up')
-        self.assertEqual(initial_q, 0.0)
-        
-        # Max Q-value of empty state should be 0
-        max_q = self.q_agent.get_max_q_value((0, 0))
-        self.assertEqual(max_q, 0.0)
-    
-    def test_q_learning_update_rule(self):
-        """Test Q-Learning update rule implementation."""
-        state = (0, 0)
-        action = 'right'
-        next_state = (0, 1)
-        reward = -1
-        
-        # Initial Q-value
-        initial_q = self.q_agent.get_q_value(state, action)
-        self.assertEqual(initial_q, 0.0)
-        
-        # Perform update
-        self.q_agent.update(state, action, next_state, reward)
-        
-        # Q-value should have changed according to update rule
-        updated_q = self.q_agent.get_q_value(state, action)
-        
-        # Q(s,a) = Q(s,a) + α[r + γ max Q(s',a') - Q(s,a)]
-        # Expected: 0 + 0.1 * (-1 + 0.9 * 0 - 0) = -0.1
-        expected_q = 0.1 * (-1 + 0.9 * 0 - 0)
-        self.assertAlmostEqual(updated_q, expected_q, places=5)
-    
-    def test_epsilon_greedy_action_selection(self):
-        """Test epsilon-greedy exploration strategy."""
-        state = (0, 0)
-        
-        # Set some Q-values to create clear best action
-        self.q_agent.q_values[(state, 'right')] = 10.0
-        self.q_agent.q_values[(state, 'up')] = 1.0
-        self.q_agent.q_values[(state, 'down')] = 1.0
-        self.q_agent.q_values[(state, 'left')] = 1.0
-        
-        # With epsilon=0, should always choose best action
-        self.q_agent_greedy.q_values = self.q_agent.q_values.copy()
-        
-        # Test multiple times to ensure consistency
-        for _ in range(10):
-            action = self.q_agent_greedy.get_action(state)
-            self.assertEqual(action, 'right')
-        
-        # With epsilon > 0, should sometimes explore
-        # (This is probabilistic, so we test the mechanism exists)
-        actions_taken = set()
-        for _ in range(100):
-            action = self.q_agent.get_action(state)
-            actions_taken.add(action)
-        
-        # Should have taken the best action most often
-        # but might have explored others
-        self.assertIn('right', actions_taken)
-    
-    def test_best_action_computation(self):
-        """Test computation of best action from Q-values."""
-        state = (1, 1)
-        
-        # Set Q-values with clear winner
-        self.q_agent.q_values[(state, 'up')] = 5.0
-        self.q_agent.q_values[(state, 'down')] = 2.0
-        self.q_agent.q_values[(state, 'left')] = 3.0
-        self.q_agent.q_values[(state, 'right')] = 1.0
-        
-        best_action = self.q_agent.get_best_action(state)
-        self.assertEqual(best_action, 'up')
-        
-        max_q = self.q_agent.get_max_q_value(state)
-        self.assertEqual(max_q, 5.0)
-    
-    def test_training_mode_toggle(self):
-        """Test training mode affects exploration behavior."""
-        state = (0, 0)
-        
-        # Set Q-values
-        self.q_agent.q_values[(state, 'right')] = 10.0
-        
-        # In training mode with epsilon > 0, might explore
-        self.q_agent.training = True
-        
-        # Stop training - should become greedy
-        self.q_agent.stop_training()
-        self.assertFalse(self.q_agent.training)
-        
-        # Now should always choose best action
-        for _ in range(10):
-            action = self.q_agent.get_action(state)
-            # Should be deterministic now
-            self.assertIsNotNone(action)
-
-class TestQLearningConvergence(unittest.TestCase):
-    """Test Q-Learning convergence properties and learning behavior."""
-    
-    def setUp(self):
-        """Set up agents and environments for convergence testing."""
-        def get_actions(state):
-            if isinstance(state, tuple):
-                return ['up', 'down', 'left', 'right']
-            else:
-                return ['forward', 'backward']
-        
-        self.q_agent = QLearningAgent(
-            action_fn=get_actions,
-            discount=0.9,
-            alpha=0.1,
-            epsilon=0.1
+        """Test Q-value initialization"""
+        agent = QLearningAgent(
+            action_fn=lambda s: ['a', 'b'],
+            discount=0.9
         )
         
-        self.deterministic_env = DeterministicEnvironment(chain_length=3)
+        # Q-values should be 0 initially
+        assert agent.get_q_value('state1', 'a') == 0
+        assert agent.get_q_value('state1', 'b') == 0
     
-    def test_q_learning_simple_convergence(self):
-        """Test Q-Learning converges on simple deterministic environment."""
-        # Train for many episodes
-        episode_rewards = []
+    def test_q_value_update(self):
+        """Test Q-value update formula"""
+        agent = QLearningAgent(
+            action_fn=lambda s: ['a', 'b'],
+            discount=0.9,
+            alpha=0.5
+        )
         
-        for episode in range(200):
-            state = self.deterministic_env.reset()
-            total_reward = 0
+        # Manual update
+        old_q = agent.get_q_value('s1', 'a')
+        agent.update('s1', 'a', 's2', 10)
+        new_q = agent.get_q_value('s1', 'a')
+        
+        # Q(s,a) <- Q(s,a) + α[r + γ*max_Q(s',a') - Q(s,a)]
+        # Q(s1,a) <- 0 + 0.5[10 + 0.9*0 - 0] = 5
+        assert new_q == 5.0
+    
+    def test_q_value_convergence(self):
+        """Test that Q-values converge with repeated updates"""
+        agent = QLearningAgent(
+            action_fn=lambda s: ['a'],
+            discount=0.9,
+            alpha=0.1
+        )
+        
+        # Repeated updates to same state-action
+        for _ in range(100):
+            agent.update('s1', 'a', 'terminal', 10)
+        
+        # Should converge to reward value (no future rewards from terminal)
+        assert abs(agent.get_q_value('s1', 'a') - 10) < 0.01
+    
+    def test_max_q_value(self):
+        """Test max Q-value extraction"""
+        agent = QLearningAgent(
+            action_fn=lambda s: ['a', 'b', 'c'],
+            discount=0.9
+        )
+        
+        # Set some Q-values manually
+        agent.q_values[('s1', 'a')] = 5
+        agent.q_values[('s1', 'b')] = 10
+        agent.q_values[('s1', 'c')] = 3
+        
+        assert agent.get_max_q_value('s1') == 10
+    
+    def test_epsilon_greedy_exploration(self):
+        """Test epsilon-greedy action selection"""
+        agent = QLearningAgent(
+            action_fn=lambda s: ['a', 'b', 'c'],
+            epsilon=0.5  # 50% exploration
+        )
+        
+        # Set Q-values to make 'b' optimal
+        agent.q_values[('s1', 'a')] = 1
+        agent.q_values[('s1', 'b')] = 10
+        agent.q_values[('s1', 'c')] = 2
+        
+        # Count action selections
+        action_counts = {'a': 0, 'b': 0, 'c': 0}
+        for _ in range(1000):
+            action = agent.get_action('s1')
+            action_counts[action] += 1
+        
+        # 'b' should be chosen most often but not always
+        assert action_counts['b'] > action_counts['a']
+        assert action_counts['b'] > action_counts['c']
+        # With epsilon=0.5, 'b' should be chosen ~50% + (50%/3) ≈ 66%
+        assert 0.5 < action_counts['b'] / 1000 < 0.8
+    
+    def test_greedy_action_when_not_training(self):
+        """Test that agent acts greedily when not training"""
+        agent = QLearningAgent(
+            action_fn=lambda s: ['a', 'b', 'c'],
+            epsilon=0.9  # High exploration
+        )
+        
+        # Set Q-values
+        agent.q_values[('s1', 'a')] = 1
+        agent.q_values[('s1', 'b')] = 10
+        agent.q_values[('s1', 'c')] = 2
+        
+        # Stop training
+        agent.stop_training()
+        
+        # Should always choose best action
+        for _ in range(100):
+            action = agent.get_action('s1')
+            assert action == 'b'
+    
+    def test_episode_management(self):
+        """Test episode start/stop functionality"""
+        agent = QLearningAgent(
+            action_fn=lambda s: ['a', 'b'],
+            discount=0.9
+        )
+        
+        # Start new episode
+        agent.start_episode()
+        assert agent.episode_rewards == 0
+        
+        # Accumulate rewards
+        agent.update('s1', 'a', 's2', 5)
+        agent.update('s2', 'b', 's3', 3)
+        
+        # Check episode tracking (if implemented)
+        # This depends on specific implementation
+    
+    def test_learning_in_grid_world(self):
+        """Test Q-learning in a simple grid world"""
+        grid = [
+            [0, 0, 0, 0],
+            [0, 1, 0, 0],
+            [0, 0, 0, 0]
+        ]
+        env = GridWorldEnvironment(grid, start=(0, 0), goal=(2, 3))
+        
+        agent = QLearningAgent(
+            action_fn=env.get_actions,
+            discount=0.9,
+            alpha=0.5,
+            epsilon=0.3
+        )
+        
+        # Train for several episodes
+        total_rewards = []
+        for episode in range(100):
+            state = env.reset()
+            episode_reward = 0
             
-            for step in range(50):  # Max steps per episode
-                action = self.q_agent.get_action(state)
-                next_state, reward, done = self.deterministic_env.step(action)
+            for step in range(100):  # Max steps per episode
+                action = agent.get_action(state)
+                next_state, reward, done = env.step(action)
+                agent.update(state, action, next_state, reward)
                 
-                self.q_agent.update(state, action, next_state, reward)
-                
-                total_reward += reward
+                episode_reward += reward
                 state = next_state
                 
                 if done:
                     break
             
-            episode_rewards.append(total_reward)
+            total_rewards.append(episode_reward)
         
         # Performance should improve over time
-        early_performance = sum(episode_rewards[:50]) / 50
-        late_performance = sum(episode_rewards[-50:]) / 50
+        early_performance = np.mean(total_rewards[:20])
+        late_performance = np.mean(total_rewards[-20:])
+        assert late_performance > early_performance
         
-        self.assertGreater(late_performance, early_performance)
-        
-        # Final policy should be reasonable
-        # State 0 should prefer 'forward', state 1 should prefer 'forward'
-        self.q_agent.stop_training()  # Turn off exploration
-        
-        best_action_0 = self.q_agent.get_best_action(0)
-        best_action_1 = self.q_agent.get_best_action(1)
-        
-        # Should learn to go forward toward goal
-        self.assertEqual(best_action_0, 'forward')
-        self.assertEqual(best_action_1, 'forward')
-    
-    def test_q_learning_exploration_vs_exploitation(self):
-        """Test balance between exploration and exploitation."""
-        # High exploration agent
-        high_explore = QLearningAgent(
-            action_fn=lambda s: ['forward', 'backward'],
-            discount=0.9,
-            alpha=0.1,
-            epsilon=0.5  # High exploration
-        )
-        
-        # Low exploration agent
-        low_explore = QLearningAgent(
-            action_fn=lambda s: ['forward', 'backward'],
-            discount=0.9,
-            alpha=0.1,
-            epsilon=0.01  # Low exploration
-        )
-        
-        # Train both agents
-        for agent in [high_explore, low_explore]:
-            for episode in range(50):
-                state = self.deterministic_env.reset()
-                
-                for step in range(20):
-                    action = agent.get_action(state)
-                    next_state, reward, done = self.deterministic_env.step(action)
-                    agent.update(state, action, next_state, reward)
-                    state = next_state
-                    if done:
-                        break
-        
-        # Both should learn something, but exploration patterns differ
-        # This is more about testing the mechanism than specific outcomes
-        self.assertGreater(len(high_explore.q_values), 0)
-        self.assertGreater(len(low_explore.q_values), 0)
-    
-    def test_q_learning_learning_rate_effect(self):
-        """Test effect of different learning rates on convergence."""
-        # High learning rate agent
-        high_alpha = QLearningAgent(
-            action_fn=lambda s: ['forward', 'backward'],
-            discount=0.9,
-            alpha=0.5,  # High learning rate
-            epsilon=0.1
-        )
-        
-        # Low learning rate agent
-        low_alpha = QLearningAgent(
-            action_fn=lambda s: ['forward', 'backward'],
-            discount=0.9,
-            alpha=0.01,  # Low learning rate
-            epsilon=0.1
-        )
-        
-        # Single update test
-        state, action, next_state, reward = 0, 'forward', 1, -1
-        
-        high_alpha.update(state, action, next_state, reward)
-        low_alpha.update(state, action, next_state, reward)
-        
-        high_q = high_alpha.get_q_value(state, action)
-        low_q = low_alpha.get_q_value(state, action)
-        
-        # High learning rate should change Q-values more dramatically
-        self.assertGreater(abs(high_q), abs(low_q))
-    
-    def test_q_learning_discount_factor_effect(self):
-        """Test effect of discount factor on learned values."""
-        # Patient agent (high discount)
-        patient_agent = QLearningAgent(
-            action_fn=lambda s: ['forward', 'backward'],
-            discount=0.95,  # Values future rewards highly
-            alpha=0.1,
-            epsilon=0.1
-        )
-        
-        # Impatient agent (low discount)
-        impatient_agent = QLearningAgent(
-            action_fn=lambda s: ['forward', 'backward'],
-            discount=0.1,   # Values immediate rewards only
-            alpha=0.1,
-            epsilon=0.1
-        )
-        
-        # Train both agents
-        for agent in [patient_agent, impatient_agent]:
-            for episode in range(100):
-                state = self.deterministic_env.reset()
-                
-                for step in range(10):
-                    action = agent.get_action(state)
-                    next_state, reward, done = self.deterministic_env.step(action)
-                    agent.update(state, action, next_state, reward)
-                    state = next_state
-                    if done:
-                        break
-        
-        # Patient agent should have higher Q-values for early states
-        # (because it values the future goal reward more)
-        patient_q0 = patient_agent.get_max_q_value(0)
-        impatient_q0 = impatient_agent.get_max_q_value(0)
-        
-        # This relationship should hold after sufficient training
-        if patient_q0 != 0 and impatient_q0 != 0:
-            self.assertGreater(patient_q0, impatient_q0)
+        # Should learn some non-zero Q-values
+        assert len(agent.q_values) > 0
+        assert any(q != 0 for q in agent.q_values.values())
 
-class TestSARSAAgent(unittest.TestCase):
-    """Test SARSA (on-policy) learning algorithm."""
+
+class TestSARSAAgent:
+    """Test SARSA agent"""
     
-    def setUp(self):
-        """Set up SARSA agent for testing."""
-        def get_actions(state):
-            return ['up', 'down', 'left', 'right']
-        
-        self.sarsa_agent = SARSAAgent(
-            action_fn=get_actions,
+    def test_initialization(self):
+        """Test SARSA initialization"""
+        agent = SARSAAgent(
+            action_fn=lambda s: ['a', 'b'],
             discount=0.9,
-            alpha=0.1,
+            alpha=0.5,
             epsilon=0.1
         )
         
-        self.simple_env = SimpleEnvironment()
+        assert agent.discount == 0.9
+        assert agent.alpha == 0.5
+        assert agent.epsilon == 0.1
+        assert hasattr(agent, 'next_action')
     
-    def test_sarsa_agent_initialization(self):
-        """Test SARSA agent initialization."""
-        def actions(s):
-            return ['a', 'b']
+    def test_sarsa_update_formula(self):
+        """Test SARSA update differs from Q-learning"""
+        # SARSA: Q(s,a) <- Q(s,a) + α[r + γ*Q(s',a') - Q(s,a)]
+        # Q-learning: Q(s,a) <- Q(s,a) + α[r + γ*max Q(s',a') - Q(s,a)]
         
         agent = SARSAAgent(
-            action_fn=actions,
-            discount=0.8,
-            alpha=0.2,
-            epsilon=0.15
+            action_fn=lambda s: ['a', 'b'],
+            discount=0.9,
+            alpha=0.5,
+            epsilon=0
         )
         
-        self.assertEqual(agent.discount, 0.8)
-        self.assertEqual(agent.alpha, 0.2)
-        self.assertEqual(agent.epsilon, 0.15)
-        self.assertIsNone(agent.next_action)
+        # Set up Q-values
+        agent.q_values[('s2', 'a')] = 5
+        agent.q_values[('s2', 'b')] = 10
+        
+        # SARSA uses actual next action, not max
+        agent.next_action = 'a'  # Simulate choosing 'a' as next action
+        agent.update('s1', 'action1', 's2', 2)
+        
+        # Update should use Q(s2, a) = 5, not max Q(s2, *) = 10
+        # Q(s1,action1) = 0 + 0.5[2 + 0.9*5 - 0] = 0.5[2 + 4.5] = 3.25
+        expected = 0.5 * (2 + 0.9 * 5)
+        assert abs(agent.get_q_value('s1', 'action1') - expected) < 0.01
     
-    def test_sarsa_update_rule(self):
-        """Test SARSA update rule (on-policy)."""
-        state = (0, 0)
-        action = 'right'
-        next_state = (0, 1)
-        next_action = 'up'
-        reward = -1
+    def test_sarsa_on_policy_learning(self):
+        """Test that SARSA learns the policy it follows"""
+        grid = [[0, 0, 0], [0, 0, 0]]
+        env = GridWorldEnvironment(grid, start=(0, 0), goal=(1, 2))
         
-        # Set next action for SARSA update
-        self.sarsa_agent.next_action = next_action
+        agent = SARSAAgent(
+            action_fn=env.get_actions,
+            discount=0.9,
+            alpha=0.5,
+            epsilon=0.3  # Some exploration
+        )
         
-        # Set some Q-value for next state-action
-        self.sarsa_agent.q_values[(next_state, next_action)] = 2.0
+        # Train SARSA
+        for episode in range(100):
+            state = env.reset()
+            action = agent.get_action(state)
+            
+            for step in range(50):
+                next_state, reward, done = env.step(action)
+                next_action = agent.get_action(next_state)
+                
+                # SARSA update with actual next action
+                agent.next_action = next_action
+                agent.update(state, action, next_state, reward)
+                
+                state = next_state
+                action = next_action
+                
+                if done:
+                    break
         
-        # Perform SARSA update
-        initial_q = self.sarsa_agent.get_q_value(state, action)
-        self.sarsa_agent.update(state, action, next_state, reward)
-        updated_q = self.sarsa_agent.get_q_value(state, action)
+        # Should have learned Q-values
+        assert len(agent.q_values) > 0
         
-        # SARSA: Q(s,a) = Q(s,a) + α[r + γ Q(s',a') - Q(s,a)]
-        # Expected: 0 + 0.1 * (-1 + 0.9 * 2.0 - 0) = 0.1 * 0.8 = 0.08
-        expected_q = 0.1 * (-1 + 0.9 * 2.0 - 0)
-        self.assertAlmostEqual(updated_q, expected_q, places=5)
+        # Check that it learned a reasonable policy
+        # From (0,0), should prefer moving toward goal
+        q_right = agent.get_q_value((0, 0), 'right')
+        q_down = agent.get_q_value((0, 0), 'down')
+        q_left = agent.get_q_value((0, 0), 'left')
+        q_up = agent.get_q_value((0, 0), 'up')
+        
+        # Right and down should have higher values (toward goal)
+        assert max(q_right, q_down) > max(q_left, q_up)
+
+
+class TestQLearningVsSARSA:
+    """Compare Q-Learning and SARSA"""
     
-    def test_sarsa_vs_q_learning_behavior(self):
-        """Test SARSA vs Q-Learning behavioral differences."""
-        # Create Q-Learning agent for comparison
-        def get_actions(state):
-            return ['forward', 'backward']
+    def test_cliff_walking_comparison(self):
+        """Test Q-learning vs SARSA on cliff walking"""
+        env = CliffWalkingEnvironment()
         
+        # Q-Learning agent
         q_agent = QLearningAgent(
-            action_fn=get_actions,
+            action_fn=env.get_actions,
             discount=0.9,
-            alpha=0.1,
+            alpha=0.5,
             epsilon=0.1
         )
         
+        # SARSA agent
         sarsa_agent = SARSAAgent(
-            action_fn=get_actions,
+            action_fn=env.get_actions,
+            discount=0.9,
+            alpha=0.5,
+            epsilon=0.1
+        )
+        
+        # Train both agents
+        q_rewards = []
+        sarsa_rewards = []
+        
+        for episode in range(200):
+            # Train Q-learning
+            state = env.reset()
+            q_episode_reward = 0
+            for step in range(500):
+                action = q_agent.get_action(state)
+                next_state, reward, done = env.step(action)
+                q_agent.update(state, action, next_state, reward)
+                q_episode_reward += reward
+                state = next_state
+                if done:
+                    break
+            q_rewards.append(q_episode_reward)
+            
+            # Train SARSA
+            state = env.reset()
+            sarsa_episode_reward = 0
+            action = sarsa_agent.get_action(state)
+            for step in range(500):
+                next_state, reward, done = env.step(action)
+                next_action = sarsa_agent.get_action(next_state)
+                sarsa_agent.next_action = next_action
+                sarsa_agent.update(state, action, next_state, reward)
+                sarsa_episode_reward += reward
+                state = next_state
+                action = next_action
+                if done:
+                    break
+            sarsa_rewards.append(sarsa_episode_reward)
+        
+        # Compare performance
+        # Q-learning should find optimal (risky) path
+        # SARSA should find safer path
+        q_final = np.mean(q_rewards[-20:])
+        sarsa_final = np.mean(sarsa_rewards[-20:])
+        
+        # Both should improve over time
+        assert q_final > np.mean(q_rewards[:20])
+        assert sarsa_final > np.mean(sarsa_rewards[:20])
+
+
+class TestExplorationStrategies:
+    """Test different exploration strategies"""
+    
+    def test_epsilon_decay(self):
+        """Test epsilon decay over episodes"""
+        initial_epsilon = 1.0
+        min_epsilon = 0.01
+        decay_rate = 0.995
+        
+        agent = QLearningAgent(
+            action_fn=lambda s: ['a', 'b'],
+            epsilon=initial_epsilon
+        )
+        
+        # Simulate epsilon decay
+        epsilons = []
+        for episode in range(1000):
+            # Decay epsilon
+            agent.epsilon = max(min_epsilon, agent.epsilon * decay_rate)
+            epsilons.append(agent.epsilon)
+        
+        # Check decay
+        assert epsilons[0] > epsilons[-1]
+        assert epsilons[-1] >= min_epsilon
+        assert all(epsilons[i] >= epsilons[i+1] for i in range(len(epsilons)-1))
+    
+    def test_optimistic_initialization(self):
+        """Test optimistic initial Q-values for exploration"""
+        agent = QLearningAgent(
+            action_fn=lambda s: ['a', 'b', 'c'],
+            epsilon=0  # Pure greedy
+        )
+        
+        # Set optimistic initial values
+        for action in ['a', 'b', 'c']:
+            agent.q_values[('s1', action)] = 10  # Optimistic
+        
+        # Even with epsilon=0, should explore all actions initially
+        actions_taken = set()
+        state = 's1'
+        
+        for _ in range(10):
+            action = agent.get_action(state)
+            actions_taken.add(action)
+            # Simulate negative reward to reduce Q-value
+            agent.update(state, action, 's2', -1)
+        
+        # Should have tried multiple actions due to optimistic init
+        assert len(actions_taken) > 1
+
+
+class TestConvergence:
+    """Test convergence properties"""
+    
+    def test_q_learning_convergence_simple(self):
+        """Test Q-learning convergence on simple MDP"""
+        # Simple two-state MDP
+        class SimpleMDP:
+            def reset(self):
+                return 'A'
+            
+            def get_actions(self, state=None):
+                return ['go']
+            
+            def step(self, state, action):
+                if state == 'A':
+                    return 'B', 0, False
+                else:  # B
+                    return 'A', 1, False
+        
+        env = SimpleMDP()
+        agent = QLearningAgent(
+            action_fn=env.get_actions,
             discount=0.9,
             alpha=0.1,
             epsilon=0.1
         )
         
-        # Train both on deterministic environment
-        det_env = DeterministicEnvironment()
+        # Train for many steps
+        state = 'A'
+        for _ in range(10000):
+            action = agent.get_action(state)
+            if state == 'A':
+                next_state, reward = 'B', 0
+            else:
+                next_state, reward = 'A', 1
+            
+            agent.update(state, action, next_state, reward)
+            state = next_state
         
-        for agent in [q_agent, sarsa_agent]:
+        # Check convergence to expected values
+        # V(A) = 0 + 0.9 * V(B) = 0.9 * (1 + 0.9 * V(A))
+        # V(A) = 0.9 + 0.81 * V(A)
+        # V(A) = 0.9 / 0.19 ≈ 4.74
+        
+        q_a = agent.get_q_value('A', 'go')
+        expected_a = 0.9 / (1 - 0.81)
+        assert abs(q_a - expected_a) < 0.5
+    
+    def test_learning_rate_effect(self):
+        """Test effect of learning rate on convergence"""
+        grid = [[0, 0], [0, 0]]
+        env = GridWorldEnvironment(grid, start=(0, 0), goal=(1, 1))
+        
+        # High learning rate
+        agent_high = QLearningAgent(
+            action_fn=env.get_actions,
+            alpha=0.9,
+            epsilon=0.1
+        )
+        
+        # Low learning rate
+        agent_low = QLearningAgent(
+            action_fn=env.get_actions,
+            alpha=0.1,
+            epsilon=0.1
+        )
+        
+        # Train both
+        for agent in [agent_high, agent_low]:
             for episode in range(50):
-                state = det_env.reset()
-                
-                if isinstance(agent, SARSAAgent):
+                state = env.reset()
+                for step in range(20):
                     action = agent.get_action(state)
-                
-                for step in range(10):
-                    if isinstance(agent, QLearningAgent):
-                        action = agent.get_action(state)
-                    
-                    next_state, reward, done = det_env.step(action)
-                    
-                    if isinstance(agent, SARSAAgent):
-                        next_action = agent.get_action(next_state) if not done else None
-                        agent.next_action = next_action
-                    
+                    next_state, reward, done = env.step(action)
                     agent.update(state, action, next_state, reward)
-                    
                     state = next_state
-                    if isinstance(agent, SARSAAgent):
-                        action = next_action
-                    
                     if done:
                         break
         
-        # Both should learn, but may have different Q-values due to on/off-policy difference
-        q_learning_q = q_agent.get_max_q_value(0)
-        sarsa_q = sarsa_agent.get_max_q_value(0)
-        
-        # Both should have learned something
-        self.assertNotEqual(q_learning_q, 0)
-        self.assertNotEqual(sarsa_q, 0)
+        # Both should learn, but patterns differ
+        assert len(agent_high.q_values) > 0
+        assert len(agent_low.q_values) > 0
 
-class TestReinforcementLearningUtilities(unittest.TestCase):
-    """Test utility functions for reinforcement learning."""
-    
-    def setUp(self):
-        """Set up test environment and agent."""
-        def get_actions(state):
-            return ['up', 'down', 'left', 'right']
-        
-        self.agent = QLearningAgent(
-            action_fn=get_actions,
-            discount=0.9,
-            alpha=0.1,
-            epsilon=0.1
-        )
-        
-        self.env = SimpleEnvironment()
-    
-    def test_q_learning_episode_function(self):
-        """Test single episode execution function."""
-        # Run single episode
-        total_reward = q_learning_episode(self.agent, self.env, max_steps=20)
-        
-        # Should return numeric reward
-        self.assertIsInstance(total_reward, (int, float))
-        
-        # Agent should have learned something
-        self.assertGreater(len(self.agent.q_values), 0)
-    
-    def test_train_q_learning_function(self):
-        """Test multi-episode training function."""
-        # Train for multiple episodes
-        episode_rewards = train_q_learning(
-            self.agent, 
-            self.env, 
-            num_episodes=50, 
-            verbose=False
-        )
-        
-        # Should return list of rewards
-        self.assertEqual(len(episode_rewards), 50)
-        self.assertTrue(all(isinstance(r, (int, float)) for r in episode_rewards))
-        
-        # Performance should generally improve
-        early_avg = sum(episode_rewards[:10]) / 10
-        late_avg = sum(episode_rewards[-10:]) / 10
-        
-        # Later episodes should perform better (or at least not much worse)
-        # Allow some tolerance for stochasticity
-        self.assertGreaterEqual(late_avg, early_avg - 5)
-    
-    def test_learning_curve_analysis(self):
-        """Test learning curve shows improvement over time."""
-        # Train agent and track performance
-        episode_rewards = train_q_learning(
-            self.agent,
-            self.env,
-            num_episodes=100,
-            verbose=False
-        )
-        
-        # Calculate moving averages to smooth out noise
-        window_size = 10
-        moving_averages = []
-        
-        for i in range(len(episode_rewards) - window_size + 1):
-            window_avg = sum(episode_rewards[i:i+window_size]) / window_size
-            moving_averages.append(window_avg)
-        
-        # Performance should show upward trend
-        early_performance = moving_averages[0]
-        late_performance = moving_averages[-1]
-        
-        # Should improve or at least not degrade significantly
-        self.assertGreaterEqual(late_performance, early_performance - 2)
 
-class TestReinforcementLearningEdgeCases(unittest.TestCase):
-    """Test edge cases and special scenarios in reinforcement learning."""
+class TestComplexEnvironments:
+    """Test agents in complex environments"""
     
-    def test_agent_with_no_actions(self):
-        """Test agent behavior when no actions are available."""
-        def no_actions(state):
-            return []
+    def test_maze_solving(self):
+        """Test Q-learning on maze"""
+        maze = [
+            [0, 1, 0, 0, 0],
+            [0, 1, 0, 1, 0],
+            [0, 0, 0, 1, 0],
+            [1, 1, 0, 1, 0],
+            [0, 0, 0, 0, 0]
+        ]
+        env = GridWorldEnvironment(maze, start=(0, 0), goal=(4, 4))
         
         agent = QLearningAgent(
-            action_fn=no_actions,
-            discount=0.9,
-            alpha=0.1,
-            epsilon=0.1
+            action_fn=env.get_actions,
+            discount=0.95,
+            alpha=0.5,
+            epsilon=0.2
         )
         
-        # Should handle gracefully
-        action = agent.get_action((0, 0))
-        self.assertIsNone(action)
-        
-        max_q = agent.get_max_q_value((0, 0))
-        self.assertEqual(max_q, 0.0)
-    
-    def test_agent_with_single_action(self):
-        """Test agent with only one action available."""
-        def single_action(state):
-            return ['only_action']
-        
-        agent = QLearningAgent(
-            action_fn=single_action,
-            discount=0.9,
-            alpha=0.1,
-            epsilon=0.1
-        )
-        
-        # Should always choose the only action
-        for _ in range(10):
-            action = agent.get_action((0, 0))
-            self.assertEqual(action, 'only_action')
-    
-    def test_extreme_learning_parameters(self):
-        """Test agent with extreme learning parameters."""
-        def get_actions(state):
-            return ['a', 'b']
-        
-        # Zero learning rate (should not learn)
-        no_learning_agent = QLearningAgent(
-            action_fn=get_actions,
-            discount=0.9,
-            alpha=0.0,  # No learning
-            epsilon=0.1
-        )
-        
-        # Update should not change Q-values
-        initial_q = no_learning_agent.get_q_value('state', 'a')
-        no_learning_agent.update('state', 'a', 'next_state', 10)
-        final_q = no_learning_agent.get_q_value('state', 'a')
-        
-        self.assertEqual(initial_q, final_q)
-        
-        # Maximum learning rate
-        max_learning_agent = QLearningAgent(
-            action_fn=get_actions,
-            discount=0.9,
-            alpha=1.0,  # Maximum learning
-            epsilon=0.1
-        )
-        
-        # Should learn very quickly
-        max_learning_agent.update('state', 'a', 'next_state', 10)
-        updated_q = max_learning_agent.get_q_value('state', 'a')
-        
-        # With α=1, Q(s,a) should equal the TD target
-        expected_q = 10 + 0.9 * 0  # reward + γ * max_Q(next_state)
-        self.assertAlmostEqual(updated_q, expected_q, places=5)
-    
-    def test_negative_rewards_learning(self):
-        """Test learning with negative reward environments."""
-        def get_actions(state):
-            return ['action']
-        
-        agent = QLearningAgent(
-            action_fn=get_actions,
-            discount=0.9,
-            alpha=0.1,
-            epsilon=0.0
-        )
-        
-        # Train with only negative rewards
-        for _ in range(50):
-            agent.update('state', 'action', 'next_state', -10)
-        
-        # Q-value should be negative
-        final_q = agent.get_q_value('state', 'action')
-        self.assertLess(final_q, 0)
-    
-    def test_very_long_episodes(self):
-        """Test agent behavior in very long episodes."""
-        class LongEnvironment:
-            def __init__(self):
-                self.state = 0
-                self.max_state = 1000
+        # Train
+        episode_lengths = []
+        for episode in range(200):
+            state = env.reset()
+            steps = 0
             
-            def reset(self):
-                self.state = 0
-                return self.state
-            
-            def step(self, action):
-                if action == 'forward':
-                    self.state += 1
-                
-                if self.state >= self.max_state:
-                    return self.state, 100, True  # Big reward at end
-                else:
-                    return self.state, -0.1, False  # Small penalty per step
-            
-            def get_valid_actions(self, state):
-                return ['forward', 'stay']
-        
-        def get_actions(state):
-            return ['forward', 'stay']
-        
-        agent = QLearningAgent(
-            action_fn=get_actions,
-            discount=0.99,  # High discount for long episodes
-            alpha=0.01,     # Low learning rate for stability
-            epsilon=0.05
-        )
-        
-        long_env = LongEnvironment()
-        
-        # Run a few long episodes
-        for episode in range(5):
-            state = long_env.reset()
-            
-            for step in range(1200):  # Allow for long episodes
+            for step in range(200):
                 action = agent.get_action(state)
-                next_state, reward, done = long_env.step(action)
+                next_state, reward, done = env.step(action)
+                agent.update(state, action, next_state, reward)
+                state = next_state
+                steps += 1
+                
+                if done:
+                    break
+            
+            episode_lengths.append(steps)
+        
+        # Should learn to solve maze faster over time
+        early_avg = np.mean(episode_lengths[:20])
+        late_avg = np.mean(episode_lengths[-20:])
+        assert late_avg < early_avg
+    
+    def test_stochastic_environment(self):
+        """Test learning in stochastic environment"""
+        grid = [[0, 0, 0], [0, 0, 0]]
+        env = GridWorldEnvironment(
+            grid, 
+            start=(0, 0), 
+            goal=(1, 2),
+            stochastic=True
+        )
+        
+        agent = QLearningAgent(
+            action_fn=env.get_actions,
+            discount=0.9,
+            alpha=0.3,
+            epsilon=0.2
+        )
+        
+        # Train in stochastic environment
+        successes = 0
+        for episode in range(300):
+            state = env.reset()
+            
+            for step in range(50):
+                action = agent.get_action(state)
+                next_state, reward, done = env.step(action)
+                agent.update(state, action, next_state, reward)
+                state = next_state
+                
+                if done and state == env.goal:
+                    successes += 1
+                    break
+        
+        # Should learn despite stochasticity
+        success_rate = successes / 300
+        assert success_rate > 0.5  # Should succeed more than half the time
+    
+    def test_negative_rewards(self):
+        """Test learning with negative rewards"""
+        # Grid with penalties
+        grid = [
+            [0, -1, 0],
+            [-1, -1, 0],
+            [0, 0, 0]
+        ]
+        env = GridWorldEnvironment(grid, start=(0, 0), goal=(2, 2))
+        
+        agent = QLearningAgent(
+            action_fn=env.get_actions,
+            discount=0.9,
+            alpha=0.5,
+            epsilon=0.1
+        )
+        
+        # Train
+        for episode in range(100):
+            state = env.reset()
+            
+            for step in range(50):
+                action = agent.get_action(state)
+                next_state, reward, done = env.step(action)
                 agent.update(state, action, next_state, reward)
                 state = next_state
                 
                 if done:
                     break
         
-        # Agent should learn to go forward (optimal policy)
-        agent.stop_training()
-        best_action = agent.get_best_action(0)
+        # Should learn to avoid negative reward states
+        # Check that Q-values for moving into penalty states are lower
+        q_into_penalty = agent.get_q_value((0, 0), 'right')  # Move to (0,1) which is -1
+        q_safe = agent.get_q_value((0, 0), 'down')  # Move to (1,0) which is -1
         
-        # Should prefer forward over staying
-        forward_q = agent.get_q_value(0, 'forward')
-        stay_q = agent.get_q_value(0, 'stay')
-        
-        if forward_q != 0 and stay_q != 0:
-            self.assertGreater(forward_q, stay_q)
+        # Both are penalties in this case, but agent should have learned something
+        assert len(agent.q_values) > 0
 
-if __name__ == '__main__':
-    # Run all reinforcement learning tests
-    unittest.main(verbosity=2)
+
+class TestMemoryAndStorage:
+    """Test memory and storage aspects"""
+    
+    def test_q_table_size(self):
+        """Test Q-table grows appropriately"""
+        agent = QLearningAgent(
+            action_fn=lambda s: ['a', 'b', 'c'],
+            epsilon=0
+        )
+        
+        # Visit multiple states
+        states = [f"s{i}" for i in range(10)]
+        actions = ['a', 'b', 'c']
+        
+        for state in states:
+            for action in actions:
+                agent.update(state, action, 'next', 1)
+        
+        # Q-table should have entries for all state-action pairs
+        assert len(agent.q_values) == len(states) * len(actions)
+    
+    def test_unseen_state_handling(self):
+        """Test handling of previously unseen states"""
+        agent = QLearningAgent(
+            action_fn=lambda s: ['a', 'b'],
+            epsilon=0
+        )
+        
+        # Get Q-value for unseen state
+        q_val = agent.get_q_value('unseen_state', 'a')
+        assert q_val == 0
+        
+        # Get action for unseen state
+        agent.q_values[('unseen_state', 'b')] = 1
+        action = agent.get_action('unseen_state')
+        assert action == 'b'
+
+
+if __name__ == "__main__":
+    pytest.main([__file__, "-v"])

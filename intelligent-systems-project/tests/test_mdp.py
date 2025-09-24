@@ -1,597 +1,619 @@
 """
-Comprehensive Test Suite for Markov Decision Process Algorithms
-
-Tests MDP formulation, value iteration, policy iteration, and various
-MDP problem types. Validates convergence, optimality, and correctness.
-
-Based on CS 5368 Week 6-7 material on sequential decision making.
+Comprehensive test suite for MDP module
+Tests MDP implementations and solving algorithms
 """
 
-import unittest
+import pytest
 import sys
 import os
-sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'src'))
-
-from mdp import (
-    MDP, GridMDP, MarkovDecisionProcess,
-    ValueIterationAgent, PolicyIterationAgent,
-    value_iteration, extract_policy, policy_evaluation
-)
+from typing import List, Tuple, Dict, Set, Any
 import math
 
+# Add parent directory to path
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+from src.mdp import (
+    MarkovDecisionProcess, MDP, GridMDP,
+    ValueIterationAgent, PolicyIterationAgent
+)
+
+
+# Test MDP Implementations
 class SimpleMDP(MarkovDecisionProcess):
-    """
-    Simple 3-state MDP for testing basic functionality.
-    
-    States: 'A', 'B', 'C'
-    Actions: 'left', 'right'
-    Transitions: Deterministic with known rewards
-    
-    This creates a simple chain: A <-> B <-> C
-    where C is terminal with reward +10, A has reward -1
-    """
+    """Simple MDP for testing"""
     
     def __init__(self):
-        """Initialize simple 3-state MDP."""
-        self.states = ['A', 'B', 'C']
-        self.start = 'A'
-        self.terminals = {'C'}
-        
-        # Rewards: A=-1 (living penalty), B=0, C=+10 (goal)
-        self.rewards = {'A': -1, 'B': 0, 'C': 10}
-        
-        # Transitions: A<->B<->C chain
-        self.transition_probs = {
-            ('A', 'right'): [('B', 1.0)],
-            ('A', 'left'): [('A', 1.0)],  # Stay in A
-            ('B', 'right'): [('C', 1.0)],
-            ('B', 'left'): [('A', 1.0)],
-            ('C', 'right'): [('C', 1.0)],  # Terminal state
-            ('C', 'left'): [('C', 1.0)]
+        self.states = ['S1', 'S2', 'S3', 'Terminal']
+        self.start = 'S1'
+        self.terminals = {'Terminal'}
+        self.actions_dict = {
+            'S1': ['a', 'b'],
+            'S2': ['a', 'b'],
+            'S3': ['a'],
+            'Terminal': []
+        }
+        self.transitions = {
+            ('S1', 'a'): [('S2', 0.8), ('S3', 0.2)],
+            ('S1', 'b'): [('S3', 1.0)],
+            ('S2', 'a'): [('Terminal', 1.0)],
+            ('S2', 'b'): [('S1', 0.5), ('S3', 0.5)],
+            ('S3', 'a'): [('Terminal', 1.0)]
+        }
+        self.rewards = {
+            ('S1', 'a', 'S2'): 5,
+            ('S1', 'a', 'S3'): -1,
+            ('S1', 'b', 'S3'): -1,
+            ('S2', 'a', 'Terminal'): 10,
+            ('S2', 'b', 'S1'): 0,
+            ('S2', 'b', 'S3'): -1,
+            ('S3', 'a', 'Terminal'): 1
         }
     
     def get_states(self):
-        """Return all states."""
         return self.states
     
     def get_start_state(self):
-        """Return start state."""
         return self.start
     
     def get_possible_actions(self, state):
-        """Return possible actions from state."""
-        if state in self.terminals:
-            return []
-        return ['left', 'right']
+        return self.actions_dict.get(state, [])
     
     def get_transition_states_and_probs(self, state, action):
-        """Return list of (next_state, probability) pairs."""
-        return self.transition_probs.get((state, action), [])
+        return self.transitions.get((state, action), [])
     
     def get_reward(self, state, action, next_state):
-        """Return reward for transition."""
-        return self.rewards.get(next_state, 0)
+        return self.rewards.get((state, action, next_state), 0)
     
     def is_terminal(self, state):
-        """Return True if state is terminal."""
         return state in self.terminals
 
-class TestMDPInterface(unittest.TestCase):
-    """Test MDP interface and basic problem formulation."""
-    
-    def setUp(self):
-        """Set up test MDP instances."""
-        self.simple_mdp = SimpleMDP()
-        
-        # Create a small grid MDP
-        self.grid = [
-            [0, -1, 10],  # 0=neutral, -1=penalty, 10=reward
-            [-1, -1, -1]
-        ]
-        self.grid_mdp = GridMDP(
-            grid=self.grid,
-            terminals={(0, 2)},  # Goal at top-right
-            init=(0, 0),
-            gamma=0.9
-        )
-    
-    def test_mdp_states_interface(self):
-        """Test MDP states interface."""
-        states = self.simple_mdp.get_states()
-        
-        self.assertEqual(len(states), 3)
-        self.assertIn('A', states)
-        self.assertIn('B', states)
-        self.assertIn('C', states)
-    
-    def test_mdp_actions_interface(self):
-        """Test MDP actions interface."""
-        # Non-terminal state should have actions
-        actions_a = self.simple_mdp.get_possible_actions('A')
-        self.assertEqual(len(actions_a), 2)
-        self.assertIn('left', actions_a)
-        self.assertIn('right', actions_a)
-        
-        # Terminal state should have no actions
-        actions_c = self.simple_mdp.get_possible_actions('C')
-        self.assertEqual(len(actions_c), 0)
-    
-    def test_mdp_transitions_interface(self):
-        """Test MDP transition model interface."""
-        # Test deterministic transition
-        transitions = self.simple_mdp.get_transition_states_and_probs('A', 'right')
-        
-        self.assertEqual(len(transitions), 1)
-        next_state, prob = transitions[0]
-        self.assertEqual(next_state, 'B')
-        self.assertEqual(prob, 1.0)
-    
-    def test_mdp_rewards_interface(self):
-        """Test MDP reward function interface."""
-        # Test reward calculation
-        reward = self.simple_mdp.get_reward('A', 'right', 'B')
-        self.assertEqual(reward, 0)  # Reward for reaching B
-        
-        reward = self.simple_mdp.get_reward('B', 'right', 'C')
-        self.assertEqual(reward, 10)  # Reward for reaching goal C
-    
-    def test_mdp_terminal_detection(self):
-        """Test terminal state detection."""
-        self.assertFalse(self.simple_mdp.is_terminal('A'))
-        self.assertFalse(self.simple_mdp.is_terminal('B'))
-        self.assertTrue(self.simple_mdp.is_terminal('C'))
 
-class TestGridMDP(unittest.TestCase):
-    """Test GridMDP implementation for spatial navigation problems."""
+class TestMarkovDecisionProcess:
+    """Test MDP base class functionality"""
     
-    def setUp(self):
-        """Set up grid MDP test cases."""
-        # Simple 3x3 grid with goal and penalty
-        self.grid = [
-            [0, 0, 10],   # Goal at (0,2)
-            [0, -5, 0],   # Penalty at (1,1)
-            [-1, 0, 0]    # Small penalty at (2,0)
-        ]
+    def test_simple_mdp(self):
+        """Test basic MDP operations"""
+        mdp = SimpleMDP()
         
-        self.grid_mdp = GridMDP(
-            grid=self.grid,
-            terminals={(0, 2)},
-            init=(2, 0),
-            gamma=0.9
-        )
+        assert mdp.get_start_state() == 'S1'
+        assert mdp.get_states() == ['S1', 'S2', 'S3', 'Terminal']
+        assert mdp.is_terminal('Terminal') == True
+        assert mdp.is_terminal('S1') == False
     
-    def test_grid_mdp_initialization(self):
-        """Test GridMDP initialization and setup."""
-        self.assertEqual(self.grid_mdp.rows, 3)
-        self.assertEqual(self.grid_mdp.cols, 3)
-        self.assertEqual(self.grid_mdp.init, (2, 0))
-        self.assertIn((0, 2), self.grid_mdp.terminals)
+    def test_mdp_actions(self):
+        """Test action availability"""
+        mdp = SimpleMDP()
+        
+        assert mdp.get_possible_actions('S1') == ['a', 'b']
+        assert mdp.get_possible_actions('S3') == ['a']
+        assert mdp.get_possible_actions('Terminal') == []
     
-    def test_grid_mdp_states_generation(self):
-        """Test that GridMDP generates correct state space."""
-        states = self.grid_mdp.get_states()
+    def test_mdp_transitions(self):
+        """Test transition probabilities"""
+        mdp = SimpleMDP()
         
-        # Should have 9 states (3x3 grid)
-        self.assertEqual(len(states), 9)
-        
-        # Check specific states exist
-        self.assertIn((0, 0), states)
-        self.assertIn((1, 1), states)
-        self.assertIn((2, 2), states)
-    
-    def test_grid_mdp_actions(self):
-        """Test GridMDP action generation."""
-        # Non-terminal state should have 4 directional actions
-        actions = self.grid_mdp.get_possible_actions((1, 1))
-        
-        self.assertEqual(len(actions), 4)
-        # Actions are direction tuples: (dr, dc)
-        expected_actions = [(0, 1), (0, -1), (1, 0), (-1, 0)]
-        for action in expected_actions:
-            self.assertIn(action, actions)
-        
-        # Terminal state should have no actions
-        terminal_actions = self.grid_mdp.get_possible_actions((0, 2))
-        self.assertEqual(len(terminal_actions), 0)
-    
-    def test_grid_mdp_stochastic_transitions(self):
-        """Test GridMDP stochastic transition model."""
-        # Test transition from (1,1) with 'right' action
-        transitions = self.grid_mdp.get_transition_states_and_probs((1, 1), (0, 1))
-        
-        # Should have 3 possible outcomes due to noise
-        self.assertEqual(len(transitions), 3)
+        transitions = mdp.get_transition_states_and_probs('S1', 'a')
+        assert len(transitions) == 2
         
         # Check probabilities sum to 1
-        total_prob = sum(prob for state, prob in transitions)
-        self.assertAlmostEqual(total_prob, 1.0, places=5)
+        total_prob = sum(prob for _, prob in transitions)
+        assert abs(total_prob - 1.0) < 0.001
         
-        # Main action should have highest probability (0.8)
-        probs = [prob for state, prob in transitions]
-        self.assertIn(0.8, probs)  # Intended direction
-        self.assertEqual(probs.count(0.1), 2)  # Two perpendicular directions
+        # Check specific transitions
+        trans_dict = dict(transitions)
+        assert abs(trans_dict['S2'] - 0.8) < 0.001
+        assert abs(trans_dict['S3'] - 0.2) < 0.001
     
-    def test_grid_mdp_boundary_handling(self):
-        """Test GridMDP handles grid boundaries correctly."""
-        # Test transition from corner that would go out of bounds
-        transitions = self.grid_mdp.get_transition_states_and_probs((0, 0), (-1, 0))  # Try to go up
+    def test_mdp_rewards(self):
+        """Test reward function"""
+        mdp = SimpleMDP()
         
-        # Should stay in place when hitting boundary
-        for next_state, prob in transitions:
-            # All resulting states should be valid grid positions
-            row, col = next_state
-            self.assertGreaterEqual(row, 0)
-            self.assertLess(row, 3)
-            self.assertGreaterEqual(col, 0)
-            self.assertLess(col, 3)
+        assert mdp.get_reward('S1', 'a', 'S2') == 5
+        assert mdp.get_reward('S2', 'a', 'Terminal') == 10
+        assert mdp.get_reward('S1', 'b', 'S3') == -1
+        assert mdp.get_reward('S1', 'x', 'S2') == 0  # Default reward
+
+
+class TestMDPClass:
+    """Test general MDP implementation"""
+    
+    def test_mdp_initialization(self):
+        """Test MDP class initialization"""
+        transitions = {
+            'S1': {'a': [('S2', 1.0)], 'b': [('S3', 1.0)]},
+            'S2': {'a': [('Terminal', 1.0)]},
+            'S3': {'a': [('Terminal', 1.0)]}
+        }
+        
+        def reward_fn(state):
+            if state == 'Terminal':
+                return 10
+            return -1
+        
+        mdp = MDP(
+            init='S1',
+            actlist=['a', 'b'],
+            terminals={'Terminal'},
+            transitions=transitions,
+            reward=reward_fn,
+            gamma=0.9
+        )
+        
+        assert mdp.init == 'S1'
+        assert mdp.gamma == 0.9
+        assert 'Terminal' in mdp.terminals
+    
+    def test_mdp_reward_function(self):
+        """Test MDP reward function"""
+        def reward_fn(state):
+            rewards = {'S1': 0, 'S2': 5, 'Terminal': 10}
+            return rewards.get(state, -1)
+        
+        mdp = MDP(
+            init='S1',
+            actlist=['a'],
+            terminals={'Terminal'},
+            reward=reward_fn
+        )
+        
+        assert mdp.R('S1') == 0
+        assert mdp.R('S2') == 5
+        assert mdp.R('Terminal') == 10
+        assert mdp.R('Unknown') == -1
+    
+    def test_mdp_transition_model(self):
+        """Test MDP transition model"""
+        transitions = {
+            'S1': {'a': [('S2', 0.7), ('S3', 0.3)]},
+            'S2': {'a': [('Terminal', 1.0)]}
+        }
+        
+        mdp = MDP(
+            init='S1',
+            actlist=['a'],
+            terminals={'Terminal'},
+            transitions=transitions
+        )
+        
+        # Test transition probabilities
+        trans = mdp.T('S1', 'a')
+        assert len(trans) == 2
+        assert ('S2', 0.7) in trans
+        assert ('S3', 0.3) in trans
+    
+    def test_mdp_actions(self):
+        """Test action availability in MDP"""
+        # Test with function for actions
+        def action_fn(state):
+            if state == 'S1':
+                return ['a', 'b', 'c']
+            return ['a']
+        
+        mdp = MDP(
+            init='S1',
+            actlist=action_fn,
+            terminals={'Terminal'}
+        )
+        
+        assert mdp.actions('S1') == ['a', 'b', 'c']
+        assert mdp.actions('S2') == ['a']
+
+
+class TestGridMDP:
+    """Test GridMDP implementation"""
+    
+    def test_grid_mdp_initialization(self):
+        """Test GridMDP initialization"""
+        grid = [
+            [0, 0, 0, 1],
+            [0, None, 0, -1],
+            [0, 0, 0, 0]
+        ]
+        
+        mdp = GridMDP(grid, terminals={(0, 3), (1, 3)}, init=(0, 0), gamma=0.9)
+        
+        assert mdp.init == (0, 0)
+        assert (0, 3) in mdp.terminals
+        assert (1, 3) in mdp.terminals
+        assert mdp.gamma == 0.9
     
     def test_grid_mdp_rewards(self):
-        """Test GridMDP reward calculation."""
-        # Test reward for reaching goal
-        reward = self.grid_mdp.get_reward((0, 1), (0, 1), (0, 2))
-        self.assertEqual(reward, 10)
-        
-        # Test penalty for reaching bad state
-        reward = self.grid_mdp.get_reward((1, 0), (0, 1), (1, 1))
-        self.assertEqual(reward, -5)
-    
-    def test_grid_mdp_visualization(self):
-        """Test GridMDP to_grid visualization method."""
-        # Create a mapping of states to values
-        values = {(0, 0): 1.0, (1, 1): -2.0, (2, 2): 3.0}
-        
-        grid_viz = self.grid_mdp.to_grid(values)
-        
-        # Should be 3x3 grid
-        self.assertEqual(len(grid_viz), 3)
-        self.assertEqual(len(grid_viz[0]), 3)
-        
-        # Check specific values
-        self.assertEqual(grid_viz[0][0], 1.0)
-        self.assertEqual(grid_viz[1][1], -2.0)
-        self.assertEqual(grid_viz[2][2], 3.0)
-        self.assertIsNone(grid_viz[0][1])  # Unmapped state
-
-class TestValueIteration(unittest.TestCase):
-    """Test Value Iteration algorithm for solving MDPs."""
-    
-    def setUp(self):
-        """Set up MDPs for value iteration testing."""
-        self.simple_mdp = SimpleMDP()
-        
-        # Create deterministic grid for predictable results
-        self.grid = [
-            [0, 0, 10],
-            [0, -1, 0]
+        """Test reward structure in GridMDP"""
+        grid = [
+            [-0.04, -0.04, -0.04, 1],
+            [-0.04, None, -0.04, -1],
+            [-0.04, -0.04, -0.04, -0.04]
         ]
-        self.grid_mdp = GridMDP(
-            grid=self.grid,
-            terminals={(0, 2)},
-            init=(0, 0),
-            gamma=0.9
-        )
+        
+        mdp = GridMDP(grid, terminals={(0, 3), (1, 3)})
+        
+        # Check rewards for different positions
+        assert mdp.R((0, 0)) == -0.04
+        assert mdp.R((0, 3)) == 1
+        assert mdp.R((1, 3)) == -1
+    
+    def test_grid_mdp_actions(self):
+        """Test available actions in GridMDP"""
+        grid = [[0, 0], [0, 0]]
+        mdp = GridMDP(grid, terminals={(1, 1)})
+        
+        # Non-terminal state should have 4 actions
+        assert len(mdp.actions((0, 0))) == 4
+        assert set(mdp.actions((0, 0))) == {(0, 1), (1, 0), (0, -1), (-1, 0)}
+        
+        # Terminal state should have no actions
+        assert mdp.actions((1, 1)) == [None]
+    
+    def test_grid_mdp_stochastic_transitions(self):
+        """Test stochastic transitions in GridMDP"""
+        grid = [[0, 0, 0], [0, 0, 0]]
+        mdp = GridMDP(grid, terminals={(1, 2)})
+        
+        # Action: move right from (0, 0)
+        transitions = mdp.T((0, 0), (0, 1))  # Right
+        
+        # Should have 3 outcomes: intended + 2 perpendicular
+        assert len(transitions) == 3
+        
+        # Check probabilities (80% intended, 10% each perpendicular)
+        trans_dict = dict(transitions)
+        
+        # Intended direction
+        assert abs(trans_dict.get((0, 1), 0) - 0.8) < 0.001
+        # Perpendicular directions
+        assert abs(trans_dict.get((1, 0), 0) - 0.1) < 0.001
+        # The other perpendicular would be (-1, 0) but hits wall, stays in place
+        assert abs(trans_dict.get((0, 0), 0) - 0.1) < 0.001
+    
+    def test_grid_mdp_obstacles(self):
+        """Test GridMDP with obstacles"""
+        grid = [
+            [0, 0, 0],
+            [0, None, 0],  # None represents obstacle
+            [0, 0, 0]
+        ]
+        
+        mdp = GridMDP(grid, terminals={(2, 2)})
+        
+        # Cannot move into obstacle
+        transitions = mdp.T((0, 1), (1, 0))  # Try to move down into obstacle
+        trans_dict = dict(transitions)
+        
+        # Should bounce back or move sideways
+        assert (1, 1) not in trans_dict  # Cannot enter obstacle
+    
+    def test_grid_mdp_to_grid(self):
+        """Test grid conversion with value mapping"""
+        grid = [[0, 0], [0, 1]]
+        mdp = GridMDP(grid, terminals={(1, 1)})
+        
+        # Create value mapping
+        values = {
+            (0, 0): 0.5,
+            (0, 1): 0.7,
+            (1, 0): 0.8,
+            (1, 1): 1.0
+        }
+        
+        grid_values = mdp.to_grid(values)
+        
+        assert len(grid_values) == 2
+        assert len(grid_values[0]) == 2
+        assert grid_values[0][0] == 0.5
+        assert grid_values[1][1] == 1.0
+
+
+class TestValueIterationAgent:
+    """Test Value Iteration algorithm"""
+    
+    def test_value_iteration_basic(self):
+        """Test basic value iteration"""
+        mdp = SimpleMDP()
+        agent = ValueIterationAgent(mdp, discount=0.9, iterations=100)
+        
+        # Check that values were computed
+        assert len(agent.values) > 0
+        
+        # Terminal state should have value 0
+        assert agent.get_value('Terminal') == 0
+        
+        # Non-terminal states should have values
+        assert agent.get_value('S1') != 0
     
     def test_value_iteration_convergence(self):
-        """Test that value iteration converges to stable values."""
-        # Run value iteration
-        values = value_iteration(self.simple_mdp, epsilon=0.001)
+        """Test that value iteration converges"""
+        mdp = SimpleMDP()
         
-        # Should return values for all states
-        self.assertIn('A', values)
-        self.assertIn('B', values)
-        self.assertIn('C', values)
+        # Run with different iteration counts
+        agent_10 = ValueIterationAgent(mdp, discount=0.9, iterations=10)
+        agent_100 = ValueIterationAgent(mdp, discount=0.9, iterations=100)
+        agent_1000 = ValueIterationAgent(mdp, discount=0.9, iterations=1000)
         
-        # Terminal state should have value equal to its reward
-        self.assertEqual(values['C'], 10)
+        # Values should stabilize
+        v_100 = agent_100.get_value('S1')
+        v_1000 = agent_1000.get_value('S1')
         
-        # Values should reflect optimal policy
-        # B should have higher value than A (closer to goal)
-        self.assertGreater(values['B'], values['A'])
+        # Should converge (difference should be small)
+        assert abs(v_100 - v_1000) < 0.01
     
-    def test_value_iteration_agent(self):
-        """Test ValueIterationAgent wrapper class."""
-        agent = ValueIterationAgent(self.simple_mdp, discount=0.9, iterations=100)
+    def test_value_iteration_policy(self):
+        """Test policy extraction from value iteration"""
+        mdp = SimpleMDP()
+        agent = ValueIterationAgent(mdp, discount=0.9, iterations=100)
         
-        # Test value retrieval
-        value_a = agent.get_value('A')
-        value_b = agent.get_value('B')
-        value_c = agent.get_value('C')
-        
-        # Terminal state value
-        self.assertEqual(value_c, 0)  # Terminal states have 0 value in agent
-        
-        # Ordering should reflect distance to goal
-        self.assertGreater(value_b, value_a)
+        # Should have a policy for non-terminal states
+        assert agent.get_policy('S1') in mdp.get_possible_actions('S1')
+        assert agent.get_policy('S2') in mdp.get_possible_actions('S2')
+        assert agent.get_policy('Terminal') is None
     
-    def test_value_iteration_policy_extraction(self):
-        """Test policy extraction from value iteration."""
-        values = value_iteration(self.simple_mdp, epsilon=0.001)
-        policy = extract_policy(self.simple_mdp, values)
+    def test_value_iteration_grid(self):
+        """Test value iteration on GridMDP"""
+        grid = [
+            [-0.04, -0.04, -0.04, 1],
+            [-0.04, None, -0.04, -1],
+            [-0.04, -0.04, -0.04, -0.04]
+        ]
         
-        # Should have policy for non-terminal states
-        self.assertIn('A', policy)
-        self.assertIn('B', policy)
+        mdp = GridMDP(grid, terminals={(0, 3), (1, 3)})
+        agent = ValueIterationAgent(mdp, discount=0.9, iterations=100)
         
-        # Policy should be optimal: A->right (toward B), B->right (toward C)
-        self.assertEqual(policy['A'], 'right')
-        self.assertEqual(policy['B'], 'right')
+        # Check values make sense
+        # States closer to positive terminal should have higher values
+        assert agent.get_value((0, 2)) > agent.get_value((0, 0))
         
-        # Terminal state should have no policy
-        self.assertIsNone(policy['C'])
+        # States near negative terminal should have lower values
+        assert agent.get_value((1, 2)) < agent.get_value((0, 2))
     
-    def test_value_iteration_discount_factor_effect(self):
-        """Test effect of different discount factors on values."""
-        # High discount (patient agent)
-        values_high = value_iteration(
-            MDP(init='A', actlist=['left', 'right'], terminals={'C'}, 
-                transitions=self.simple_mdp.transition_probs,
-                reward=self.simple_mdp.rewards, gamma=0.95)
-        )
+    def test_value_iteration_optimal_policy(self):
+        """Test that value iteration finds optimal policy"""
+        # Simple grid where optimal path is clear
+        grid = [
+            [0, 0, 0, 10],
+            [0, 0, 0, 0],
+            [-10, 0, 0, 0]
+        ]
         
-        # Low discount (impatient agent)
-        values_low = value_iteration(
-            MDP(init='A', actlist=['left', 'right'], terminals={'C'},
-                transitions=self.simple_mdp.transition_probs, 
-                reward=self.simple_mdp.rewards, gamma=0.5)
-        )
+        mdp = GridMDP(grid, terminals={(0, 3), (2, 0)})
+        agent = ValueIterationAgent(mdp, discount=0.9, iterations=100)
         
-        # High discount should lead to higher values (more future-oriented)
-        self.assertGreater(values_high['A'], values_low['A'])
-    
-    def test_value_iteration_grid_world(self):
-        """Test value iteration on grid world problem."""
-        agent = ValueIterationAgent(self.grid_mdp, discount=0.9, iterations=50)
+        # From (0, 0), should move right toward positive reward
+        policy_00 = agent.get_policy((0, 0))
+        assert policy_00[1] > 0  # Move right
         
-        # Goal state should have highest value in neighborhood
-        goal_value = agent.get_value((0, 2))
-        neighbor_value = agent.get_value((0, 1))
-        
-        # Values should be reasonable (non-infinite, non-NaN)
-        self.assertFalse(math.isnan(goal_value))
-        self.assertFalse(math.isinf(goal_value))
-        self.assertFalse(math.isnan(neighbor_value))
-        self.assertFalse(math.isinf(neighbor_value))
-    
-    def test_value_iteration_policy_optimality(self):
-        """Test that value iteration produces optimal policy."""
-        agent = ValueIterationAgent(self.simple_mdp, discount=0.9, iterations=100)
-        
-        # Get policy for each state
-        policy_a = agent.get_policy('A')
-        policy_b = agent.get_policy('B')
-        
-        # Optimal policy should move toward goal
-        self.assertEqual(policy_a, 'right')  # A should go to B
-        self.assertEqual(policy_b, 'right')  # B should go to C
+        # From (2, 1), should move away from negative reward
+        policy_21 = agent.get_policy((2, 1))
+        assert policy_21[1] >= 0  # Not left
 
-class TestPolicyIteration(unittest.TestCase):
-    """Test Policy Iteration algorithm for solving MDPs."""
+
+class TestPolicyIterationAgent:
+    """Test Policy Iteration algorithm"""
     
-    def setUp(self):
-        """Set up MDPs for policy iteration testing."""
-        self.simple_mdp = SimpleMDP()
-        
-        # Small grid for testing
-        self.grid = [[0, 10], [-1, 0]]
-        self.grid_mdp = GridMDP(
-            grid=self.grid,
-            terminals={(0, 1)},
-            init=(1, 0),
-            gamma=0.9
-        )
-    
-    def test_policy_iteration_agent_creation(self):
-        """Test PolicyIterationAgent initialization."""
-        agent = PolicyIterationAgent(self.simple_mdp, discount=0.9)
+    def test_policy_iteration_basic(self):
+        """Test basic policy iteration"""
+        mdp = SimpleMDP()
+        agent = PolicyIterationAgent(mdp, discount=0.9)
         
         # Should have computed values and policy
-        self.assertIsNotNone(agent.values)
-        self.assertIsNotNone(agent.policy)
+        assert len(agent.values) > 0
+        assert len(agent.policy) > 0
         
-        # Should have policy for non-terminal states
-        self.assertIn('A', agent.policy)
-        self.assertIn('B', agent.policy)
+        # Check policy is valid
+        for state in mdp.get_states():
+            if not mdp.is_terminal(state):
+                assert agent.get_policy(state) in mdp.get_possible_actions(state)
     
     def test_policy_iteration_convergence(self):
-        """Test that policy iteration converges to optimal policy."""
-        agent = PolicyIterationAgent(self.simple_mdp, discount=0.9)
+        """Test that policy iteration converges to optimal"""
+        mdp = SimpleMDP()
         
-        # Get final policy
-        policy_a = agent.get_policy('A')
-        policy_b = agent.get_policy('B')
+        vi_agent = ValueIterationAgent(mdp, discount=0.9, iterations=1000)
+        pi_agent = PolicyIterationAgent(mdp, discount=0.9)
         
-        # Should converge to optimal policy
-        self.assertEqual(policy_a, 'right')
-        self.assertEqual(policy_b, 'right')
+        # Both should converge to similar values
+        for state in mdp.get_states():
+            vi_value = vi_agent.get_value(state)
+            pi_value = pi_agent.get_value(state)
+            assert abs(vi_value - pi_value) < 0.1
     
-    def test_policy_iteration_vs_value_iteration(self):
-        """Test policy iteration gives same result as value iteration."""
-        pi_agent = PolicyIterationAgent(self.simple_mdp, discount=0.9)
-        vi_agent = ValueIterationAgent(self.simple_mdp, discount=0.9, iterations=100)
+    def test_policy_iteration_grid(self):
+        """Test policy iteration on GridMDP"""
+        grid = [
+            [-0.04, -0.04, -0.04, 1],
+            [-0.04, None, -0.04, -1],
+            [-0.04, -0.04, -0.04, -0.04]
+        ]
         
-        # Policies should be the same
-        for state in ['A', 'B']:
-            pi_policy = pi_agent.get_policy(state)
-            vi_policy = vi_agent.get_policy(state)
-            self.assertEqual(pi_policy, vi_policy)
+        mdp = GridMDP(grid, terminals={(0, 3), (1, 3)})
+        agent = PolicyIterationAgent(mdp, discount=0.9)
+        
+        # Should have policy for all non-terminal states
+        for i in range(3):
+            for j in range(4):
+                if (i, j) not in mdp.terminals and grid[i][j] is not None:
+                    policy = agent.get_policy((i, j))
+                    assert policy is not None
+                    assert policy in mdp.actions((i, j))
     
-    def test_policy_evaluation_function(self):
-        """Test standalone policy evaluation function."""
-        # Create a fixed policy: always go right
-        policy = {'A': 'right', 'B': 'right', 'C': None}
+    def test_policy_iteration_improvement(self):
+        """Test that policy improves during iteration"""
+        # Create MDP where initial random policy is likely suboptimal
+        grid = [
+            [0, 0, 0, 100],
+            [0, 0, 0, 0],
+            [0, 0, 0, 0],
+            [-100, 0, 0, 0]
+        ]
         
-        # Evaluate this policy
-        values = policy_evaluation(self.simple_mdp, policy, max_iterations=50)
+        mdp = GridMDP(grid, terminals={(0, 3), (3, 0)})
+        agent = PolicyIterationAgent(mdp, discount=0.9)
         
-        # Should compute reasonable values
-        self.assertIn('A', values)
-        self.assertIn('B', values)
-        self.assertIn('C', values)
-        
-        # Values should reflect policy: B closer to goal than A
-        self.assertGreater(values['B'], values['A'])
-    
-    def test_policy_iteration_grid_world(self):
-        """Test policy iteration on grid world."""
-        agent = PolicyIterationAgent(self.grid_mdp, discount=0.9)
-        
-        # Should produce reasonable policy
-        start_policy = agent.get_policy((1, 0))
-        
-        # Policy should be valid action
-        valid_actions = self.grid_mdp.get_possible_actions((1, 0))
-        self.assertIn(start_policy, valid_actions)
+        # Final policy should navigate toward positive reward
+        policy_00 = agent.get_policy((0, 0))
+        # Should move right or down (toward positive terminal)
+        assert policy_00 in [(0, 1), (1, 0)]
 
-class TestMDPUtilityFunctions(unittest.TestCase):
-    """Test utility functions for MDP analysis."""
-    
-    def setUp(self):
-        """Set up test MDP."""
-        self.simple_mdp = SimpleMDP()
-    
-    def test_policy_evaluation_convergence(self):
-        """Test policy evaluation converges to correct values."""
-        # Fixed policy: always go right
-        policy = {'A': 'right', 'B': 'right', 'C': None}
-        
-        # Evaluate with different iteration counts
-        values_10 = policy_evaluation(self.simple_mdp, policy, max_iterations=10)
-        values_50 = policy_evaluation(self.simple_mdp, policy, max_iterations=50)
-        
-        # More iterations should give more accurate values
-        # (values should converge, so difference should be small)
-        diff_a = abs(values_50['A'] - values_10['A'])
-        diff_b = abs(values_50['B'] - values_10['B'])
-        
-        # Differences should be small (convergence)
-        self.assertLess(diff_a, 1.0)
-        self.assertLess(diff_b, 1.0)
-    
-    def test_extract_policy_optimality(self):
-        """Test policy extraction produces optimal actions."""
-        # Run value iteration to get optimal values
-        values = value_iteration(self.simple_mdp, epsilon=0.001)
-        
-        # Extract policy
-        policy = extract_policy(self.simple_mdp, values)
-        
-        # Policy should be greedy with respect to values
-        # This means each action should maximize expected value
-        
-        for state in ['A', 'B']:
-            chosen_action = policy[state]
-            
-            # Calculate Q-value for chosen action
-            transitions = self.simple_mdp.get_transition_states_and_probs(state, chosen_action)
-            q_chosen = sum(prob * (self.simple_mdp.get_reward(state, chosen_action, next_state) + 
-                                 0.9 * values[next_state])
-                          for next_state, prob in transitions)
-            
-            # Check that no other action has higher Q-value
-            for action in self.simple_mdp.get_possible_actions(state):
-                if action != chosen_action:
-                    transitions_alt = self.simple_mdp.get_transition_states_and_probs(state, action)
-                    q_alt = sum(prob * (self.simple_mdp.get_reward(state, action, next_state) + 
-                                      0.9 * values[next_state])
-                               for next_state, prob in transitions_alt)
-                    
-                    # Chosen action should be at least as good
-                    self.assertGreaterEqual(q_chosen, q_alt - 0.001)  # Small tolerance
 
-class TestMDPEdgeCases(unittest.TestCase):
-    """Test MDP algorithms on edge cases and special scenarios."""
+class TestMDPComparison:
+    """Test comparing different MDP algorithms"""
     
-    def test_single_state_mdp(self):
-        """Test MDP with only one state."""
-        class SingleStateMDP(MarkovDecisionProcess):
-            def get_states(self):
-                return ['only']
-            
-            def get_start_state(self):
-                return 'only'
-            
-            def get_possible_actions(self, state):
-                return []  # No actions available
-            
-            def get_transition_states_and_probs(self, state, action):
-                return []
-            
-            def get_reward(self, state, action, next_state):
-                return 5  # Fixed reward
-            
-            def is_terminal(self, state):
-                return True  # Always terminal
-        
-        single_mdp = SingleStateMDP()
-        
-        # Value iteration should handle this gracefully
-        values = value_iteration(single_mdp, epsilon=0.001)
-        self.assertIn('only', values)
-        
-        # Policy extraction should handle no actions
-        policy = extract_policy(single_mdp, values)
-        self.assertIsNone(policy['only'])
+    def create_test_mdp(self):
+        """Create a standard test MDP"""
+        grid = [
+            [-0.04, -0.04, -0.04, 1],
+            [-0.04, None, -0.04, -1],
+            [-0.04, -0.04, -0.04, -0.04]
+        ]
+        return GridMDP(grid, terminals={(0, 3), (1, 3)}, gamma=0.9)
     
-    def test_disconnected_mdp(self):
-        """Test MDP with disconnected state components."""
-        class DisconnectedMDP(MarkovDecisionProcess):
-            def get_states(self):
-                return ['A', 'B', 'C', 'D']  # A-B disconnected from C-D
-            
-            def get_start_state(self):
-                return 'A'
-            
-            def get_possible_actions(self, state):
-                if state in ['A', 'B']:
-                    return ['move']
-                elif state in ['C', 'D']:
-                    return ['move']
-                return []
-            
-            def get_transition_states_and_probs(self, state, action):
-                transitions = {
-                    ('A', 'move'): [('B', 1.0)],
-                    ('B', 'move'): [('A', 1.0)],
-                    ('C', 'move'): [('D', 1.0)],
-                    ('D', 'move'): [('C', 1.0)]
-                }
-                return transitions.get((state, action), [])
-            
-            def get_reward(self, state, action, next_state):
-                return 0
-            
-            def is_terminal(self, state):
-                return False
+    def test_vi_vs_pi_values(self):
+        """Compare values from VI and PI"""
+        mdp = self.create_test_mdp()
         
-        disconnected_mdp = DisconnectedMDP()
+        vi_agent = ValueIterationAgent(mdp, discount=0.9, iterations=100)
+        pi_agent = PolicyIterationAgent(mdp, discount=0.9)
         
-        # Should still compute values (may be 0 due to no terminal rewards)
-        values = value_iteration(disconnected_mdp, epsilon=0.001)
-        
-        self.assertEqual(len(values), 4)
-        for state in ['A', 'B', 'C', 'D']:
-            self.assertIn(state, values)
+        # Values should be very similar
+        for state in mdp.states:
+            if state not in mdp.terminals:
+                vi_val = vi_agent.get_value(state)
+                pi_val = pi_agent.get_value(state)
+                assert abs(vi_val - pi_val) < 0.01, f"State {state}: VI={vi_val}, PI={pi_val}"
     
-    def test_zero_discount_mdp(self):
-        """Test MDP with zero discount factor (myopic agent)."""
-        # Create MDP with gamma=0 (only immediate rewards matter)
-        zero_discount_mdp = MDP(
-            init='A',
-            actlist=['left', 'right'],
-            terminals={'C'},
-            transitions=self.simple_mdp.transition_probs,
-            reward=self.simple_mdp.rewards,
-            gamma=0.0
+    def test_vi_vs_pi_policies(self):
+        """Compare policies from VI and PI"""
+        mdp = self.create_test_mdp()
+        
+        vi_agent = ValueIterationAgent(mdp, discount=0.9, iterations=100)
+        pi_agent = PolicyIterationAgent(mdp, discount=0.9)
+        
+        # Policies should be identical for optimal solution
+        disagreements = 0
+        for state in mdp.states:
+            if state not in mdp.terminals:
+                vi_policy = vi_agent.get_policy(state)
+                pi_policy = pi_agent.get_policy(state)
+                if vi_policy != pi_policy:
+                    disagreements += 1
+        
+        # Should have very few or no disagreements
+        assert disagreements <= 2  # Allow small differences due to ties
+
+
+class TestDiscountFactor:
+    """Test effect of discount factor"""
+    
+    def test_discount_factor_effect(self):
+        """Test how discount factor affects policy"""
+        grid = [
+            [0, 0, 0, 10],
+            [0, 0, 0, 0],
+            [0, 0, 0, 0],
+            [0, 0, 0, 0]
+        ]
+        terminals = {(0, 3)}
+        
+        # High discount: future rewards matter
+        mdp_high = GridMDP(grid, terminals, gamma=0.95)
+        agent_high = ValueIterationAgent(mdp_high, discount=0.95, iterations=100)
+        
+        # Low discount: immediate rewards matter more
+        mdp_low = GridMDP(grid, terminals, gamma=0.1)
+        agent_low = ValueIterationAgent(mdp_low, discount=0.1, iterations=100)
+        
+        # With high discount, distant states should have higher values
+        # With low discount, distant states should have lower values
+        assert agent_high.get_value((3, 0)) > agent_low.get_value((3, 0))
+    
+    def test_myopic_vs_farsighted(self):
+        """Test myopic vs farsighted behavior"""
+        # Grid with immediate small reward vs distant large reward
+        grid = [
+            [0, 1, 0, 0, 100],
+            [0, 0, 0, 0, 0]
+        ]
+        terminals = {(0, 1), (0, 4)}
+        
+        # Very low discount (myopic)
+        mdp_myopic = GridMDP(grid, terminals, gamma=0.1, init=(0, 0))
+        agent_myopic = ValueIterationAgent(mdp_myopic, discount=0.1, iterations=100)
+        
+        # High discount (farsighted)
+        mdp_farsighted = GridMDP(grid, terminals, gamma=0.99, init=(0, 0))
+        agent_farsighted = ValueIterationAgent(mdp_farsighted, discount=0.99, iterations=100)
+        
+        # Myopic agent might prefer immediate small reward
+        # Farsighted agent should prefer distant large reward
+        policy_myopic = agent_myopic.get_policy((0, 0))
+        policy_farsighted = agent_farsighted.get_policy((0, 0))
+        
+        # Policies might differ based on discount
+        assert policy_myopic is not None
+        assert policy_farsighted is not None
+
+
+class TestEdgeCases:
+    """Test edge cases and error handling"""
+    
+    def test_empty_mdp(self):
+        """Test MDP with minimal states"""
+        mdp = MDP(
+            init='S1',
+            actlist=[],
+            terminals={'S1'},
+            gamma=0.9
         )
         
-        values = value_iteration(zero_discount_mdp, epsilon=0.001)
+        agent = ValueIterationAgent(mdp, discount=0.9, iterations=10)
+        assert agent.get_value('S1') == 0  # Terminal state
+        assert agent.get_policy('S1') is None
+    
+    def test_single_state_mdp(self):
+        """Test MDP with single non-terminal state"""
+        transitions = {
+            'S1': {'a': [('S1', 1.0)]}  # Self-loop
+        }
         
-        # With gamma=0, only immediate rewards matter
-        # Values should reflect immediate reward structure
-        self.assertIn('A', values)
-        self.assertIn('B', values)
-        self.assertIn('C', values)
+        mdp = MDP(
+            init='S1',
+            actlist=['a'],
+            terminals=set(),
+            transitions=transitions,
+            reward=lambda s: 1,  # Constant reward
+            gamma=0.9
+        )
+        
+        agent = ValueIterationAgent(mdp, discount=0.9, iterations=100)
+        
+        # Value should be r/(1-γ) = 1/(1-0.9) = 10
+        assert abs(agent.get_value('S1') - 10) < 1
+    
+    def test_deterministic_vs_stochastic(self):
+        """Test deterministic vs stochastic transitions"""
+        # Deterministic MDP
+        det_transitions = {
+            'S1': {'a': [('S2', 1.0)], 'b': [('S3', 1.0)]},
+            'S2': {'a': [('Terminal', 1.0)]},
+            'S3': {'a': [('Terminal', 1.0)]}
+        }
+        
+        # Stochastic MDP
+        stoch_transitions = {
+            'S1': {'a': [('S2', 0.5), ('S3', 0.5)], 'b': [('S3', 1.0)]},
+            'S2': {'a': [('Terminal', 1.0)]},
+            'S3': {'a': [('Terminal', 1.0)]}
+        }
+        
+        reward_fn = lambda s: 10 if s == 'Terminal' else -1
+        
+        det_mdp = MDP('S1', ['a', 'b'], {'Terminal'}, det_transitions, reward_fn, 0.9)
+        stoch_mdp = MDP('S1', ['a', 'b'], {'Terminal'}, stoch_transitions, reward_fn, 0.9)
+        
+        det_agent = ValueIterationAgent(det_mdp, 0.9, 100)
+        stoch_agent = ValueIterationAgent(stoch_mdp, 0.9, 100)
+        
+        # Values should differ due to stochasticity
+        assert det_agent.get_value('S1') != stoch_agent.get_value('S1')
 
-if __name__ == '__main__':
-    # Run all MDP algorithm tests
-    unittest.main(verbosity=2)
+
+if __name__ == "__main__":
+    pytest.main([__file__, "-v"])

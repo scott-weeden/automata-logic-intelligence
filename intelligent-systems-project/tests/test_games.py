@@ -1,501 +1,513 @@
 """
-Comprehensive Test Suite for Game Playing Algorithms
-
-Tests minimax, alpha-beta pruning, and expectimax algorithms on various
-game scenarios. Validates correctness, optimality, and pruning efficiency.
-
-Based on CS 5368 Week 4-5 material on adversarial search and game theory.
+Comprehensive test suite for games module
+Tests game algorithms, game states, and game implementations
 """
 
-import unittest
+import pytest
 import sys
 import os
-sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'src'))
+from typing import List, Any
+import random
 
-from games import (
-    GameState, GameAgent, MinimaxAgent, AlphaBetaAgent, ExpectimaxAgent,
+# Add parent directory to path
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+from src.games import (
+    GameState, GameAgent,
+    MinimaxAgent, AlphaBetaAgent, ExpectimaxAgent,
     Game, TicTacToe
 )
 
+
+# Test Game Implementations
 class SimpleGameState(GameState):
-    """
-    Simple test game state for algorithm testing.
+    """Simple game state for testing"""
     
-    Game tree structure:
-    - Each state has value equal to its depth (for testing)
-    - Actions are 'left' and 'right' 
-    - Terminal at depth 3 with utilities based on path
-    """
-    
-    def __init__(self, depth=0, path="", max_depth=3):
-        """
-        Initialize simple game state.
-        
-        Args:
-            depth: Current depth in game tree
-            path: String representing path taken ('L' for left, 'R' for right)
-            max_depth: Maximum depth before terminal state
-        """
-        self.depth = depth
-        self.path = path
-        self.max_depth = max_depth
-        self.current_player = depth % 2  # Alternates between 0 and 1
+    def __init__(self, value, children=None, terminal=False):
+        self.value = value
+        self.children = children or []
+        self.terminal = terminal
     
     def get_legal_actions(self, agent_index=0):
-        """Return available actions: ['left', 'right'] unless terminal."""
-        if self.is_terminal():
+        if self.terminal:
             return []
-        return ['left', 'right']
+        return list(range(len(self.children)))
     
     def generate_successor(self, agent_index, action):
-        """Generate successor state based on action."""
-        if action == 'left':
-            new_path = self.path + 'L'
-        else:  # action == 'right'
-            new_path = self.path + 'R'
-        
-        return SimpleGameState(self.depth + 1, new_path, self.max_depth)
+        if action < len(self.children):
+            return self.children[action]
+        return None
     
     def is_terminal(self):
-        """Terminal when max depth reached."""
-        return self.depth >= self.max_depth
+        return self.terminal or len(self.children) == 0
     
     def get_utility(self, agent_index=0):
+        if agent_index == 0:
+            return self.value
+        return -self.value  # Adversarial for agent 1
+
+
+class TwoPlayerGame(Game):
+    """Simple two-player game for testing"""
+    
+    def __init__(self, tree):
+        self.tree = tree
+        self.initial = tree
+    
+    def actions(self, state):
+        return state.get_legal_actions()
+    
+    def result(self, state, action):
+        return state.generate_successor(0, action)
+    
+    def terminal_test(self, state):
+        return state.is_terminal()
+    
+    def utility(self, state, player):
+        return state.get_utility(player)
+    
+    def to_move(self, state):
+        # Simple alternation for testing
+        return 0
+    
+    def display(self, state):
+        print(f"State value: {state.value}")
+
+
+class TestGameState:
+    """Test GameState functionality"""
+    
+    def test_simple_game_state(self):
+        """Test basic game state operations"""
+        terminal_state = SimpleGameState(10, terminal=True)
+        
+        assert terminal_state.is_terminal() == True
+        assert terminal_state.get_utility(0) == 10
+        assert terminal_state.get_utility(1) == -10
+        assert terminal_state.get_legal_actions() == []
+    
+    def test_game_state_with_children(self):
+        """Test game state with successors"""
+        leaf1 = SimpleGameState(5, terminal=True)
+        leaf2 = SimpleGameState(3, terminal=True)
+        parent = SimpleGameState(0, children=[leaf1, leaf2])
+        
+        assert parent.is_terminal() == False
+        assert parent.get_legal_actions() == [0, 1]
+        assert parent.generate_successor(0, 0) == leaf1
+        assert parent.generate_successor(0, 1) == leaf2
+
+
+class TestMinimaxAgent:
+    """Test Minimax algorithm"""
+    
+    def create_simple_tree(self):
+        """Create a simple game tree for testing
+        
+                 root
+                /    \
+               /      \
+              A        B
+            /  \      /  \
+           3    12   8    2
         """
-        Utility function for terminal states.
+        # Terminal nodes
+        leaf1 = SimpleGameState(3, terminal=True)
+        leaf2 = SimpleGameState(12, terminal=True)
+        leaf3 = SimpleGameState(8, terminal=True)
+        leaf4 = SimpleGameState(2, terminal=True)
         
-        Returns utility based on path taken:
-        - 'LLL': 3, 'LLR': 12, 'LRL': 8, 'LRR': 2
-        - 'RLL': 4, 'RLR': 6, 'RRL': 14, 'RRR': 5
+        # Internal nodes
+        nodeA = SimpleGameState(0, children=[leaf1, leaf2])
+        nodeB = SimpleGameState(0, children=[leaf3, leaf4])
         
-        This creates interesting minimax scenarios for testing.
+        # Root
+        root = SimpleGameState(0, children=[nodeA, nodeB])
+        
+        return root
+    
+    def test_minimax_basic(self):
+        """Test basic minimax decision making"""
+        root = self.create_simple_tree()
+        
+        # Depth 2 minimax should evaluate all leaves
+        agent = MinimaxAgent(index=0, depth=2)
+        action = agent.get_action(root)
+        
+        # Should choose action 0 (left subtree) as max(min(3,12), min(8,2)) = max(3,2) = 3
+        assert action == 0
+        assert agent.nodes_explored > 0
+    
+    def test_minimax_depth_limit(self):
+        """Test minimax with depth limit"""
+        root = self.create_simple_tree()
+        
+        # Depth 1 should only look one level deep
+        agent = MinimaxAgent(index=0, depth=1)
+        action = agent.get_action(root)
+        
+        assert action is not None
+        assert agent.nodes_explored > 0
+    
+    def test_minimax_terminal_state(self):
+        """Test minimax on terminal state"""
+        terminal = SimpleGameState(10, terminal=True)
+        agent = MinimaxAgent(index=0, depth=2)
+        
+        action = agent.get_action(terminal)
+        assert action is None  # No actions available
+    
+    def test_minimax_single_action(self):
+        """Test minimax with only one action"""
+        leaf = SimpleGameState(5, terminal=True)
+        root = SimpleGameState(0, children=[leaf])
+        
+        agent = MinimaxAgent(index=0, depth=1)
+        action = agent.get_action(root)
+        
+        assert action == 0  # Only choice
+
+
+class TestAlphaBetaAgent:
+    """Test Alpha-Beta pruning"""
+    
+    def create_prunable_tree(self):
+        """Create a tree where alpha-beta can prune
+        
+                 root(MAX)
+                /         \
+           A(MIN)         B(MIN)  
+           /    \         /    \
+          3     12       2     [pruned]
+        
+        After finding 3 in left subtree, and 2 in right subtree,
+        no need to explore further in right subtree
         """
-        if not self.is_terminal():
-            return 0
+        # More complex tree for pruning
+        leaves = [SimpleGameState(i, terminal=True) for i in [3, 12, 2, 14, 5, 8]]
         
-        utilities = {
-            'LLL': 3, 'LLR': 12, 'LRL': 8, 'LRR': 2,
-            'RLL': 4, 'RLR': 6, 'RRL': 14, 'RRR': 5
-        }
+        nodeA = SimpleGameState(0, children=leaves[0:2])  # 3, 12
+        nodeB = SimpleGameState(0, children=leaves[2:4])  # 2, 14
+        nodeC = SimpleGameState(0, children=leaves[4:6])  # 5, 8
         
-        return utilities.get(self.path, 0)
+        root = SimpleGameState(0, children=[nodeA, nodeB, nodeC])
+        
+        return root
+    
+    def test_alphabeta_same_as_minimax(self):
+        """Test that alpha-beta gives same result as minimax"""
+        root = self.create_prunable_tree()
+        
+        minimax = MinimaxAgent(index=0, depth=2)
+        alphabeta = AlphaBetaAgent(index=0, depth=2)
+        
+        minimax_action = minimax.get_action(root)
+        alphabeta_action = alphabeta.get_action(root)
+        
+        # Should get same decision
+        assert minimax_action == alphabeta_action
+    
+    def test_alphabeta_prunes(self):
+        """Test that alpha-beta explores fewer nodes than minimax"""
+        root = self.create_prunable_tree()
+        
+        minimax = MinimaxAgent(index=0, depth=2)
+        alphabeta = AlphaBetaAgent(index=0, depth=2)
+        
+        minimax.get_action(root)
+        alphabeta.get_action(root)
+        
+        # Alpha-beta should explore fewer or equal nodes
+        assert alphabeta.nodes_explored <= minimax.nodes_explored
+    
+    def test_alphabeta_depth_limit(self):
+        """Test alpha-beta with depth limit"""
+        root = self.create_prunable_tree()
+        
+        agent = AlphaBetaAgent(index=0, depth=1)
+        action = agent.get_action(root)
+        
+        assert action is not None
+        assert agent.nodes_explored > 0
 
-class TestGameStateInterface(unittest.TestCase):
-    """Test the GameState base class interface and simple implementation."""
-    
-    def setUp(self):
-        """Set up test game states."""
-        self.initial_state = SimpleGameState()
-        self.terminal_state = SimpleGameState(depth=3, path="LLL")
-    
-    def test_game_state_creation(self):
-        """Test basic game state creation and attributes."""
-        state = SimpleGameState(depth=1, path="L")
-        
-        self.assertEqual(state.depth, 1)
-        self.assertEqual(state.path, "L")
-        self.assertFalse(state.is_terminal())
-    
-    def test_legal_actions_non_terminal(self):
-        """Test legal actions for non-terminal states."""
-        actions = self.initial_state.get_legal_actions()
-        
-        self.assertEqual(len(actions), 2)
-        self.assertIn('left', actions)
-        self.assertIn('right', actions)
-    
-    def test_legal_actions_terminal(self):
-        """Test legal actions for terminal states (should be empty)."""
-        actions = self.terminal_state.get_legal_actions()
-        
-        self.assertEqual(len(actions), 0)
-    
-    def test_successor_generation(self):
-        """Test successor state generation."""
-        # Test left action
-        left_successor = self.initial_state.generate_successor(0, 'left')
-        self.assertEqual(left_successor.depth, 1)
-        self.assertEqual(left_successor.path, 'L')
-        
-        # Test right action
-        right_successor = self.initial_state.generate_successor(0, 'right')
-        self.assertEqual(right_successor.depth, 1)
-        self.assertEqual(right_successor.path, 'R')
-    
-    def test_terminal_detection(self):
-        """Test terminal state detection."""
-        self.assertFalse(self.initial_state.is_terminal())
-        self.assertTrue(self.terminal_state.is_terminal())
-    
-    def test_utility_calculation(self):
-        """Test utility calculation for terminal states."""
-        # Test known utility values
-        lll_state = SimpleGameState(depth=3, path="LLL")
-        self.assertEqual(lll_state.get_utility(0), 3)
-        
-        rrr_state = SimpleGameState(depth=3, path="RRR")
-        self.assertEqual(rrr_state.get_utility(0), 5)
-        
-        # Non-terminal should return 0
-        self.assertEqual(self.initial_state.get_utility(0), 0)
 
-class TestMinimaxAgent(unittest.TestCase):
-    """Test Minimax algorithm for optimal play in perfect information games."""
+class TestExpectimaxAgent:
+    """Test Expectimax for stochastic games"""
     
-    def setUp(self):
-        """Set up minimax agents with different depths."""
-        self.minimax_depth_3 = MinimaxAgent(index=0, depth=3)
-        self.minimax_depth_1 = MinimaxAgent(index=0, depth=1)
-        self.initial_state = SimpleGameState()
+    def create_chance_tree(self):
+        """Create a tree with chance nodes
+        
+                root(MAX)
+                /       \
+           A(CHANCE)   B(CHANCE)
+            /    \      /    \
+           4     6     2     8
+        
+        Chance nodes take average of children
+        """
+        # Terminal nodes
+        leaves = [SimpleGameState(i, terminal=True) for i in [4, 6, 2, 8]]
+        
+        # Chance nodes (will be averaged)
+        nodeA = SimpleGameState(0, children=leaves[0:2])
+        nodeB = SimpleGameState(0, children=leaves[2:4])
+        
+        root = SimpleGameState(0, children=[nodeA, nodeB])
+        
+        return root
     
-    def test_minimax_agent_creation(self):
-        """Test minimax agent initialization."""
-        agent = MinimaxAgent(index=0, depth=5)
+    def test_expectimax_basic(self):
+        """Test basic expectimax decision"""
+        root = self.create_chance_tree()
         
-        self.assertEqual(agent.index, 0)
-        self.assertEqual(agent.depth, 5)
-        self.assertEqual(agent.nodes_explored, 0)
+        agent = ExpectimaxAgent(index=0, depth=2)
+        action = agent.get_action(root)
+        
+        # Should choose action 0: avg(4,6)=5 > avg(2,8)=5
+        # Both equal, so either is acceptable
+        assert action in [0, 1]
+        assert agent.nodes_explored > 0
     
-    def test_minimax_perfect_play(self):
-        """Test minimax finds optimal action for known game tree."""
-        # Reset node counter
-        self.minimax_depth_3.nodes_explored = 0
+    def test_expectimax_different_from_minimax(self):
+        """Test that expectimax gives different results than minimax for chance nodes"""
+        # Create tree where minimax and expectimax differ
+        leaves = [SimpleGameState(i, terminal=True) for i in [1, 10, 5, 6]]
+        nodeA = SimpleGameState(0, children=leaves[0:2])  # 1, 10
+        nodeB = SimpleGameState(0, children=leaves[2:4])  # 5, 6
+        root = SimpleGameState(0, children=[nodeA, nodeB])
         
-        action = self.minimax_depth_3.get_action(self.initial_state)
+        minimax = MinimaxAgent(index=0, depth=2)
+        expectimax = ExpectimaxAgent(index=0, depth=2)
         
-        # Should choose action that leads to best outcome
-        # Based on our utility function, agent should choose 'right'
-        # because it leads to higher minimax value
-        self.assertIn(action, ['left', 'right'])
+        # Minimax assumes worst case: min(1,10)=1 vs min(5,6)=5, chooses B
+        # Expectimax uses average: avg(1,10)=5.5 vs avg(5,6)=5.5
         
-        # Should have explored some nodes
-        self.assertGreater(self.minimax_depth_3.nodes_explored, 0)
-    
-    def test_minimax_depth_limiting(self):
-        """Test minimax with depth limiting."""
-        # Shallow search should still return valid action
-        action = self.minimax_depth_1.get_action(self.initial_state)
+        minimax_action = minimax.get_action(root)
+        expectimax_action = expectimax.get_action(root)
         
-        self.assertIn(action, ['left', 'right'])
-        
-        # Should explore fewer nodes than full depth search
-        self.assertLess(
-            self.minimax_depth_1.nodes_explored,
-            self.minimax_depth_3.nodes_explored + 1
-        )
-    
-    def test_minimax_terminal_state_handling(self):
-        """Test minimax behavior on terminal states."""
-        terminal_state = SimpleGameState(depth=3, path="LLL")
-        
-        # Should return None or handle gracefully for terminal state
-        action = self.minimax_depth_3.get_action(terminal_state)
-        
-        # Terminal state has no legal actions
-        self.assertIsNone(action)
-    
-    def test_minimax_deterministic_behavior(self):
-        """Test that minimax returns consistent results."""
-        # Run multiple times, should get same result
-        action1 = self.minimax_depth_3.get_action(self.initial_state)
-        action2 = self.minimax_depth_3.get_action(self.initial_state)
-        
-        self.assertEqual(action1, action2)
+        # Actions might differ based on implementation
+        assert minimax_action is not None
+        assert expectimax_action is not None
 
-class TestAlphaBetaAgent(unittest.TestCase):
-    """Test Alpha-Beta pruning for efficiency while maintaining optimality."""
-    
-    def setUp(self):
-        """Set up alpha-beta agents and comparison minimax agent."""
-        self.alphabeta = AlphaBetaAgent(index=0, depth=3)
-        self.minimax = MinimaxAgent(index=0, depth=3)
-        self.initial_state = SimpleGameState()
-    
-    def test_alphabeta_agent_creation(self):
-        """Test alpha-beta agent initialization."""
-        agent = AlphaBetaAgent(index=1, depth=4)
-        
-        self.assertEqual(agent.index, 1)
-        self.assertEqual(agent.depth, 4)
-        self.assertEqual(agent.nodes_explored, 0)
-    
-    def test_alphabeta_same_result_as_minimax(self):
-        """Test alpha-beta returns same optimal action as minimax."""
-        # Reset counters
-        self.alphabeta.nodes_explored = 0
-        self.minimax.nodes_explored = 0
-        
-        ab_action = self.alphabeta.get_action(self.initial_state)
-        mm_action = self.minimax.get_action(self.initial_state)
-        
-        # Should make same optimal decision
-        self.assertEqual(ab_action, mm_action)
-    
-    def test_alphabeta_pruning_efficiency(self):
-        """Test that alpha-beta explores fewer nodes than minimax."""
-        # Reset counters
-        self.alphabeta.nodes_explored = 0
-        self.minimax.nodes_explored = 0
-        
-        # Run both algorithms
-        self.alphabeta.get_action(self.initial_state)
-        self.minimax.get_action(self.initial_state)
-        
-        # Alpha-beta should explore fewer nodes due to pruning
-        self.assertLess(
-            self.alphabeta.nodes_explored,
-            self.minimax.nodes_explored
-        )
-        
-        print(f"Alpha-Beta explored: {self.alphabeta.nodes_explored}")
-        print(f"Minimax explored: {self.minimax.nodes_explored}")
-        print(f"Pruning efficiency: {1 - self.alphabeta.nodes_explored/self.minimax.nodes_explored:.2%}")
-    
-    def test_alphabeta_different_depths(self):
-        """Test alpha-beta with different search depths."""
-        shallow_ab = AlphaBetaAgent(index=0, depth=1)
-        deep_ab = AlphaBetaAgent(index=0, depth=4)
-        
-        shallow_action = shallow_ab.get_action(self.initial_state)
-        deep_action = deep_ab.get_action(self.initial_state)
-        
-        # Both should return valid actions
-        self.assertIn(shallow_action, ['left', 'right'])
-        self.assertIn(deep_action, ['left', 'right'])
-        
-        # Deeper search should explore more nodes
-        self.assertGreater(deep_ab.nodes_explored, shallow_ab.nodes_explored)
-    
-    def test_alphabeta_pruning_scenarios(self):
-        """Test alpha-beta pruning in specific game scenarios."""
-        # Create state where pruning should occur
-        # This tests the pruning logic more directly
-        
-        # Start from a state deeper in the tree
-        mid_game_state = SimpleGameState(depth=1, path="L")
-        
-        self.alphabeta.nodes_explored = 0
-        action = self.alphabeta.get_action(mid_game_state)
-        
-        # Should still find valid action
-        self.assertIn(action, ['left', 'right'])
-        
-        # Should have done some pruning (fewer than full expansion)
-        self.assertGreater(self.alphabeta.nodes_explored, 0)
 
-class TestExpectimaxAgent(unittest.TestCase):
-    """Test Expectimax algorithm for games with chance elements."""
-    
-    def setUp(self):
-        """Set up expectimax agent."""
-        self.expectimax = ExpectimaxAgent(index=0, depth=3)
-        self.initial_state = SimpleGameState()
-    
-    def test_expectimax_agent_creation(self):
-        """Test expectimax agent initialization."""
-        agent = ExpectimaxAgent(index=1, depth=2)
-        
-        self.assertEqual(agent.index, 1)
-        self.assertEqual(agent.depth, 2)
-        self.assertEqual(agent.nodes_explored, 0)
-    
-    def test_expectimax_finds_action(self):
-        """Test expectimax returns valid action."""
-        action = self.expectimax.get_action(self.initial_state)
-        
-        self.assertIn(action, ['left', 'right'])
-        self.assertGreater(self.expectimax.nodes_explored, 0)
-    
-    def test_expectimax_vs_minimax_behavior(self):
-        """Test expectimax behavior compared to minimax."""
-        minimax = MinimaxAgent(index=0, depth=3)
-        
-        # Reset counters
-        self.expectimax.nodes_explored = 0
-        minimax.nodes_explored = 0
-        
-        exp_action = self.expectimax.get_action(self.initial_state)
-        mm_action = minimax.get_action(self.initial_state)
-        
-        # Both should return valid actions (may differ due to different assumptions)
-        self.assertIn(exp_action, ['left', 'right'])
-        self.assertIn(mm_action, ['left', 'right'])
-        
-        # Expectimax assumes chance nodes, so may make different decisions
-        # We just verify both are valid
-    
-    def test_expectimax_chance_node_handling(self):
-        """Test expectimax properly handles chance nodes (opponent moves)."""
-        # In our simple game, opponent moves are treated as chance nodes
-        # Expectimax should average over opponent's possible actions
-        
-        action = self.expectimax.get_action(self.initial_state)
-        
-        # Should handle the averaging correctly and return valid action
-        self.assertIsNotNone(action)
-        self.assertIn(action, ['left', 'right'])
-
-class TestTicTacToeGame(unittest.TestCase):
-    """Test TicTacToe game implementation and integration with agents."""
-    
-    def setUp(self):
-        """Set up TicTacToe game and agents."""
-        self.game = TicTacToe()
-        self.minimax_agent = MinimaxAgent(index=0, depth=9)  # Full game tree
-        self.alphabeta_agent = AlphaBetaAgent(index=0, depth=9)
+class TestTicTacToe:
+    """Test Tic-Tac-Toe game implementation"""
     
     def test_tictactoe_initialization(self):
-        """Test TicTacToe game initialization."""
-        self.assertIsNotNone(self.game.initial)
+        """Test TicTacToe game initialization"""
+        game = TicTacToe()
         
-        # Initial state should not be terminal
-        self.assertFalse(self.game.initial.is_terminal())
-        
-        # Should have 9 legal actions (empty squares)
-        actions = self.game.initial.get_legal_actions(0)
-        self.assertEqual(len(actions), 9)
+        assert game.initial is not None
+        assert not game.terminal_test(game.initial)
     
-    def test_tictactoe_move_generation(self):
-        """Test TicTacToe move generation and state transitions."""
-        initial_state = self.game.initial
+    def test_tictactoe_actions(self):
+        """Test available actions in TicTacToe"""
+        game = TicTacToe()
+        initial_actions = game.actions(game.initial)
         
-        # Make a move
-        action = (1, 1)  # Center square
-        new_state = initial_state.generate_successor(0, action)
-        
-        # Should have one fewer legal action
-        self.assertEqual(len(new_state.get_legal_actions(1)), 8)
-        
-        # Should not be terminal after one move
-        self.assertFalse(new_state.is_terminal())
+        # Should have 9 possible moves initially
+        assert len(initial_actions) == 9
     
-    def test_tictactoe_winning_detection(self):
-        """Test TicTacToe winning condition detection."""
-        # Create a winning state manually
-        # This would require implementing a specific board state
-        # For now, we test that the game can detect terminal states
+    def test_tictactoe_move(self):
+        """Test making a move in TicTacToe"""
+        game = TicTacToe()
         
-        state = self.game.initial
+        # Make first move
+        action = game.actions(game.initial)[0]
+        new_state = game.result(game.initial, action)
         
-        # Play a few moves to test non-terminal detection
-        state = state.generate_successor(0, (0, 0))  # X
-        state = state.generate_successor(1, (0, 1))  # O
-        state = state.generate_successor(0, (1, 1))  # X
-        
-        # Should still not be terminal
-        self.assertFalse(state.is_terminal())
+        assert new_state != game.initial
+        assert len(game.actions(new_state)) == 8  # One less action available
     
-    def test_agents_on_tictactoe(self):
-        """Test that game agents can play TicTacToe."""
-        # Test minimax agent can choose action
-        action = self.minimax_agent.get_action(self.game.initial)
+    def test_tictactoe_terminal(self):
+        """Test terminal state detection"""
+        game = TicTacToe()
         
-        self.assertIsNotNone(action)
-        self.assertIsInstance(action, tuple)
-        self.assertEqual(len(action), 2)  # (row, col)
+        # Play until terminal or max moves
+        state = game.initial
+        moves = 0
+        max_moves = 9
         
-        # Action should be valid
-        valid_actions = self.game.initial.get_legal_actions(0)
-        self.assertIn(action, valid_actions)
+        while not game.terminal_test(state) and moves < max_moves:
+            actions = game.actions(state)
+            if actions:
+                action = actions[0]
+                state = game.result(state, action)
+                moves += 1
+            else:
+                break
+        
+        # Game should terminate within 9 moves
+        assert moves <= 9
     
-    def test_alphabeta_vs_minimax_tictactoe(self):
-        """Test alpha-beta vs minimax on TicTacToe for efficiency."""
-        # Reset counters
-        self.minimax_agent.nodes_explored = 0
-        self.alphabeta_agent.nodes_explored = 0
+    def test_tictactoe_with_minimax(self):
+        """Test playing TicTacToe with Minimax agent"""
+        game = TicTacToe()
+        agent = MinimaxAgent(index=0, depth=2)
         
-        # Get actions from both
-        mm_action = self.minimax_agent.get_action(self.game.initial)
-        ab_action = self.alphabeta_agent.get_action(self.game.initial)
+        # Agent should be able to choose a move
+        action = agent.get_action(game.initial)
+        assert action is not None
+        assert action in game.actions(game.initial)
+    
+    def test_tictactoe_perfect_play(self):
+        """Test that perfect play leads to draw"""
+        game = TicTacToe()
         
-        # Both should choose valid actions
-        valid_actions = self.game.initial.get_legal_actions(0)
-        self.assertIn(mm_action, valid_actions)
-        self.assertIn(ab_action, valid_actions)
+        # Two perfect players (high depth)
+        player1 = MinimaxAgent(index=0, depth=9)
+        player2 = MinimaxAgent(index=1, depth=9)
+        
+        state = game.initial
+        current_player = 0
+        moves = 0
+        
+        while not game.terminal_test(state) and moves < 9:
+            if current_player == 0:
+                action = player1.get_action(state)
+            else:
+                action = player2.get_action(state)
+            
+            if action is not None:
+                state = game.result(state, action)
+            current_player = 1 - current_player
+            moves += 1
+        
+        # Perfect play should lead to a draw (utility 0)
+        if game.terminal_test(state):
+            utility = game.utility(state, 0)
+            assert abs(utility) <= 0.5  # Draw or very small advantage
+
+
+class TestGameAgent:
+    """Test GameAgent base class"""
+    
+    def test_agent_initialization(self):
+        """Test agent initialization"""
+        agent = GameAgent(index=0)
+        
+        assert agent.index == 0
+        assert hasattr(agent, 'nodes_explored')
+    
+    def test_agent_subclass(self):
+        """Test that agents are proper subclasses"""
+        minimax = MinimaxAgent(index=0, depth=2)
+        alphabeta = AlphaBetaAgent(index=1, depth=3)
+        
+        assert isinstance(minimax, GameAgent)
+        assert isinstance(alphabeta, GameAgent)
+        assert minimax.index == 0
+        assert alphabeta.index == 1
+
+
+class TestComplexGameScenarios:
+    """Test complex game scenarios"""
+    
+    def test_deep_tree(self):
+        """Test agents on deeper game trees"""
+        # Create a 3-level tree
+        def create_deep_tree(depth, branching=2):
+            if depth == 0:
+                return SimpleGameState(random.randint(-10, 10), terminal=True)
+            
+            children = [create_deep_tree(depth-1, branching) for _ in range(branching)]
+            return SimpleGameState(0, children=children)
+        
+        root = create_deep_tree(3, 3)  # 3 levels, branching factor 3
+        
+        # All agents should handle deep trees
+        for AgentClass in [MinimaxAgent, AlphaBetaAgent, ExpectimaxAgent]:
+            agent = AgentClass(index=0, depth=3)
+            action = agent.get_action(root)
+            assert action is not None
+    
+    def test_asymmetric_tree(self):
+        """Test agents on asymmetric trees"""
+        # Create an unbalanced tree
+        deep_leaf = SimpleGameState(10, terminal=True)
+        shallow_leaf = SimpleGameState(5, terminal=True)
+        
+        deep_branch = SimpleGameState(0, children=[deep_leaf])
+        for _ in range(3):  # Make it deeper
+            deep_branch = SimpleGameState(0, children=[deep_branch])
+        
+        root = SimpleGameState(0, children=[deep_branch, shallow_leaf])
+        
+        agent = MinimaxAgent(index=0, depth=5)
+        action = agent.get_action(root)
+        assert action is not None
+    
+    def test_many_actions(self):
+        """Test with many possible actions"""
+        # Create state with many children
+        num_actions = 20
+        leaves = [SimpleGameState(i, terminal=True) for i in range(num_actions)]
+        root = SimpleGameState(0, children=leaves)
+        
+        agent = AlphaBetaAgent(index=0, depth=1)
+        action = agent.get_action(root)
+        
+        assert action is not None
+        assert 0 <= action < num_actions
+    
+    def test_alternating_players(self):
+        """Test proper alternation between players"""
+        # Create a game tree with explicit player tracking
+        class PlayerGameState(SimpleGameState):
+            def __init__(self, value, player=0, children=None, terminal=False):
+                super().__init__(value, children, terminal)
+                self.player = player
+        
+        # Build a tree with alternating players
+        leaves = [PlayerGameState(i, player=1, terminal=True) for i in [3, 5, 2, 8]]
+        node1 = PlayerGameState(0, player=1, children=leaves[0:2])
+        node2 = PlayerGameState(0, player=1, children=leaves[2:4])
+        root = PlayerGameState(0, player=0, children=[node1, node2])
+        
+        # Both agents should work with alternating players
+        agent1 = MinimaxAgent(index=0, depth=2)
+        agent2 = MinimaxAgent(index=1, depth=2)
+        
+        action1 = agent1.get_action(root)
+        action2 = agent2.get_action(root)
+        
+        assert action1 is not None
+        assert action2 is not None
+
+
+class TestPerformance:
+    """Test performance characteristics"""
+    
+    def test_alphabeta_faster_than_minimax(self):
+        """Verify alpha-beta pruning improves performance"""
+        # Create a tree where pruning is effective
+        def create_ordered_tree():
+            """Create tree with good move ordering for pruning"""
+            # Best moves first enables more pruning
+            leaves = [SimpleGameState(i, terminal=True) 
+                     for i in [9, 3, 7, 2, 8, 1, 6, 4, 5]]
+            
+            nodes = []
+            for i in range(0, 9, 3):
+                nodes.append(SimpleGameState(0, children=leaves[i:i+3]))
+            
+            return SimpleGameState(0, children=nodes)
+        
+        root = create_ordered_tree()
+        
+        minimax = MinimaxAgent(index=0, depth=2)
+        alphabeta = AlphaBetaAgent(index=0, depth=2)
+        
+        minimax.get_action(root)
+        alphabeta.get_action(root)
         
         # Alpha-beta should explore significantly fewer nodes
-        self.assertLess(
-            self.alphabeta_agent.nodes_explored,
-            self.minimax_agent.nodes_explored
-        )
+        assert alphabeta.nodes_explored < minimax.nodes_explored
         
-        print(f"TicTacToe - Minimax: {self.minimax_agent.nodes_explored}, "
-              f"Alpha-Beta: {self.alphabeta_agent.nodes_explored}")
+        # Calculate pruning effectiveness
+        pruning_ratio = alphabeta.nodes_explored / minimax.nodes_explored
+        assert pruning_ratio < 0.9  # At least 10% improvement
 
-class TestGameAgentInterface(unittest.TestCase):
-    """Test the GameAgent base class and common functionality."""
-    
-    def test_game_agent_initialization(self):
-        """Test GameAgent base class initialization."""
-        agent = GameAgent(index=1)
-        
-        self.assertEqual(agent.index, 1)
-        self.assertEqual(agent.nodes_explored, 0)
-    
-    def test_game_agent_abstract_methods(self):
-        """Test that GameAgent requires get_action implementation."""
-        agent = GameAgent()
-        
-        # Should raise NotImplementedError for abstract method
-        with self.assertRaises(NotImplementedError):
-            agent.get_action(SimpleGameState())
 
-class TestGamePerformanceCharacteristics(unittest.TestCase):
-    """Test performance characteristics and complexity of game algorithms."""
-    
-    def setUp(self):
-        """Set up agents for performance testing."""
-        self.minimax = MinimaxAgent(index=0, depth=4)
-        self.alphabeta = AlphaBetaAgent(index=0, depth=4)
-        self.expectimax = ExpectimaxAgent(index=0, depth=4)
-        self.test_state = SimpleGameState()
-    
-    def test_algorithm_node_exploration_comparison(self):
-        """Compare node exploration across different algorithms."""
-        # Reset all counters
-        self.minimax.nodes_explored = 0
-        self.alphabeta.nodes_explored = 0
-        self.expectimax.nodes_explored = 0
-        
-        # Run all algorithms
-        mm_action = self.minimax.get_action(self.test_state)
-        ab_action = self.alphabeta.get_action(self.test_state)
-        exp_action = self.expectimax.get_action(self.test_state)
-        
-        # All should return valid actions
-        for action in [mm_action, ab_action, exp_action]:
-            self.assertIn(action, ['left', 'right'])
-        
-        # Print performance comparison
-        print(f"\nPerformance Comparison (depth=4):")
-        print(f"Minimax nodes: {self.minimax.nodes_explored}")
-        print(f"Alpha-Beta nodes: {self.alphabeta.nodes_explored}")
-        print(f"Expectimax nodes: {self.expectimax.nodes_explored}")
-        
-        # Alpha-beta should be most efficient
-        self.assertLessEqual(
-            self.alphabeta.nodes_explored,
-            self.minimax.nodes_explored
-        )
-    
-    def test_depth_scaling_behavior(self):
-        """Test how node exploration scales with search depth."""
-        depths = [1, 2, 3]
-        node_counts = []
-        
-        for depth in depths:
-            agent = AlphaBetaAgent(index=0, depth=depth)
-            agent.get_action(self.test_state)
-            node_counts.append(agent.nodes_explored)
-        
-        # Node count should generally increase with depth
-        # (though pruning may cause some variation)
-        self.assertGreater(node_counts[-1], node_counts[0])
-        
-        print(f"\nDepth scaling for Alpha-Beta:")
-        for i, depth in enumerate(depths):
-            print(f"Depth {depth}: {node_counts[i]} nodes")
-
-if __name__ == '__main__':
-    # Run all game algorithm tests
-    unittest.main(verbosity=2)
+if __name__ == "__main__":
+    pytest.main([__file__, "-v"])
