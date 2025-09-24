@@ -1,160 +1,389 @@
-# LaTeX in Docker
+# Automata Theory Library 🤖
 
-[![GitHub license](https://img.shields.io/github/license/scott-weeden/latex-docker)](https://github.com/scott-weeden/latex-docker/blob/main/LICENSE)
-[![GitHub build status](https://img.shields.io/github/actions/workflow/status/scott-weeden/latex-docker/docker.yaml?branch=main)](https://github.com/scott-weeden/latex-docker/actions)
-[![GitHub release](https://img.shields.io/github/v/release/scott-weeden/latex-docker)](https://github.com/scott-weeden/latex-docker/releases)
-[![DockerHub](https://img.shields.io/badge/docker.io-scott-weeden%2Flatex-blue)](https://hub.docker.com/r/scott-weeden/latex)
-[![GitHub Container Registry](https://img.shields.io/badge/ghcr.io-scott-weeden%2Flatex-blue)](https://github.com/users/scott-weeden/packages/container/package/latex)
+**Making Undecidability Visceral** - Watch infinite loops spiral in real-time!
 
-[![Docker Image Size (minimal)](https://img.shields.io/docker/image-size/scott-weeden/latex/latest-minimal?label=minimal)](https://hub.docker.com/r/scott-weeden/latex)
-[![Docker Image Size (basic)](https://img.shields.io/docker/image-size/scott-weeden/latex/latest-basic?label=basic)](https://hub.docker.com/r/scott-weeden/latex)
-[![Docker Image Size (small)](https://img.shields.io/docker/image-size/scott-weeden/latex/latest-small?label=small)](https://hub.docker.com/r/scott-weeden/latex)
-[![Docker Image Size (medium)](https://img.shields.io/docker/image-size/scott-weeden/latex/latest-medium?label=medium)](https://hub.docker.com/r/scott-weeden/latex)
-[![Docker Image Size (full)](https://img.shields.io/docker/image-size/scott-weeden/latex/latest-full?label=full)](https://hub.docker.com/r/scott-weeden/latex)
+A comprehensive Python library for learning and experimenting with automata theory, featuring immediate red/green test feedback and visual execution traces that make theoretical computer science tangible.
 
-This repository defines a set of images which may be used
-to run LaTeX in a container, for example in CI/CD.
-They come in several flavors, which correspond to TeX Live schemes
-(see the table below).
-The default scheme is `full` which contains all packages.
+## 🚀 Features
 
-If some package is missing you can always use `tlmgr` to install it.
-The image is based on [`alpine`](https://alpinelinux.org/), so system packages
-may be installed using `apk`.
+### Core Automata Types
+- **DFA** (Deterministic Finite Automaton)
+- **NFA** (Non-deterministic Finite Automaton with ε-transitions)
+- **Turing Machines** with loop detection and step limits
+- **Universal Turing Machine** (UTM) simulator
 
-| Scheme  | Image                          | Size    |
-|---------|--------------------------------|---------|
-| minimal | `scott-weeden/latex:2025.1-minimal` | ~40 MB  |
-| basic   | `scott-weeden/latex:2025.1-basic`   | ~90 MB  |
-| small   | `scott-weeden/latex:2025.1-small`   | ~180 MB |
-| medium  | `scott-weeden/latex:2025.1-medium`  | ~500 MB |
-| full    | `scott-weeden/latex:2025.1`         | ~2 GB   |
+### Visceral Undecidability
+- `--trace` flag to watch execution step-by-step
+- `--max-steps` to explore infinite loops safely
+- Real-time loop detection and visualization
+- Visual spiraling of non-halting computations
 
-The images are made in such a way that they reuse layers.
-For example `full` will add a layer to `medium` with packages that are
-not present there.
-This makes it easier to manage and saves space.
+### Immediate Feedback
+- Red/Green pytest integration
+- Instant validation when students write machines
+- Comprehensive test suites for all exercises
+- Clear error messages with hints
 
-## Usage
+## 📦 Installation
 
-If you're writing a CI/CD configuration, check out [CI/CD Examples](#cicd-examples)!
-
-Assuming you want to quickly compile a file named `main.tex` in the current
-directory to a PDF and place the output in `./out`:
-
-```shell
-docker run --rm -v "$PWD:/src" -w /src -u "$UID:$GID" scott-weeden/latex:2025.1 latexmk -pdf -outdir=out -auxdir=out/aux main.tex
+### Quick Install
+```bash
+pip install automata-theory
 ```
 
-If you want to work on your LaTeX project and see your changes live,
-add `-pvc` at the end.
-This will recompile the project automatically each time a source file changes.
+### Development Install
+```bash
+git clone https://github.com/scott-weeden/automata-theory
+cd automata-theory
+pip install -e ".[dev]"
+```
 
-If you want to use a different engine, use e.g. `-xelatex` for XeLaTeX
-or `-lualatex` for LuaLaTeX.
+## 🎯 Quick Start
 
-Other useful options you may want to check out include e.g. `-c`, `-g`, or `-silent`.
+### 1. Create Your First DFA
+```python
+from automata_lib import DFA
 
-See [latexmk documentation](https://ctan.gust.org.pl/tex-archive/support/latexmk/latexmk.pdf)
-for detailed usage and options.
+# DFA that accepts strings with even number of 0s
+dfa = DFA(
+    states={'q0', 'q1'},
+    alphabet={'0', '1'},
+    transitions={
+        ('q0', '0'): 'q1',
+        ('q0', '1'): 'q0',
+        ('q1', '0'): 'q0',
+        ('q1', '1'): 'q1',
+    },
+    start_state='q0',
+    accept_states={'q0'}
+)
 
-If you don't want to use `latexmk` you are free to issue any command you want
-(`latex`, `pdflatex`, `xelatex`, etc.) and it should just work.
-For more complex building processes, using a building tool such as `make` is advised.
-In that case you'll need to install it by issuing `apk add make` inside the container.
+# Test it
+print(dfa.accepts('0011'))  # True (two 0s)
+print(dfa.accepts('000'))   # False (three 0s)
+```
 
-## Versions
+### 2. Watch a Turing Machine Loop
+```bash
+# Create an infinite loop demonstration
+automata undecidability
 
-There are several types of versions described below.
+# Watch it spiral with trace
+automata run undecidable.tm.json '111' --trace --max-steps 50
 
-*If you're unsure which version to use, use the latest stable version.*
+# See loop detection in action
+automata run undecidable.tm.json '111' --trace --loop-detect
+```
 
-### Stable Versions
+### 3. Get Instant Test Feedback
+```bash
+# Run tests on your implementation
+pytest test_automata.py -v --tb=short
 
-Stable versions are in the format of `<major>.<minor>` (e.g. `2022.1`).
-The major version relates to TeX Live version (which is the year),
-the minor version is the version of the image within the given year.
+# Watch for red/green feedback
+✅ test_student_dfa_even_zeros PASSED
+❌ test_student_dfa_divisible_by_3 FAILED
+   Expected: True for input '11'
+   Got: False
+   Hint: Binary 11 is decimal 3
+```
 
-Stable versions offer image updates & fixes and include the
-set of packages for the given TeX Live version at the time of release.
+## 📚 Student Exercises
 
-| TeX Live version | Latest stable version |
-| ---------------- | --------------------- |
-| 2025             | `2025.1`              |
-| 2024             | `2024.5`              |
-| 2023             | `2023.4`              |
-| 2022             | `2022.3`              |
-| 2021             | `2021.4`              |
-| 2020             | `2020.2`              |
-| 2019             | `2019.2`              |
-| 2018             | `2018.2`              |
+### Exercise Structure
+```
+student_solutions/
+├── dfa_even_zeros.json       # Exercise 1
+├── dfa_divisible_3.json      # Exercise 2
+├── dfa_no_consecutive_ones.json  # Exercise 3
+├── nfa_ends_01.json          # Exercise 4
+├── nfa_contains_101.json     # Exercise 5
+├── tm_binary_increment.json  # Exercise 6
+├── tm_palindrome.json        # Exercise 7
+└── tm_loop_demo.json         # Exercise 8
+```
 
-All stable versions are available on the [releases page](https://github.com/scott-weeden/latex-docker/releases).
+### Example Exercise File
+```json
+{
+  "type": "DFA",
+  "states": ["q0", "q1"],
+  "alphabet": ["0", "1"],
+  "transitions": {
+    "q0,0": "q1",
+    "q0,1": "q0",
+    "q1,0": "q0",
+    "q1,1": "q1"
+  },
+  "start_state": "q0",
+  "accept_states": ["q0"]
+}
+```
 
-### Development Versions
+## 🔬 Exploring Undecidability
 
-If you want to use the newest TeX Live or visit an old release
-from the past, you can use development versions.
+### The Halting Problem Made Real
+```python
+from automata_lib import TuringMachine, HaltReason
 
-Development versions are released automatically
-every day and come in several formats:
+# Create a TM that might not halt
+tm = create_infinite_loop_tm()
 
-1. `devel` &mdash; The lastest development build which uses the main TL mirror.
-  Using this version is **highly discouraged**, especially in CI/CD,
-  as in case a newer TeX Live release appears, `tlmgr` will not work.
+# Run with different inputs
+accepted, reason, steps = tm.run('', max_steps=100)
+print(f"Empty: {reason.value}")  # ACCEPT
 
-2. `devel-<TL_VERSION>-<DATE>` &mdash; A development version containing TeX Live
-  in version `<TL_VERSION>`, based on a historic mirror from `<DATE>` (so that `tlmgr` will work).
-  Usually these images are created once and not updated in the future.
+accepted, reason, steps = tm.run('111', max_steps=1000)
+print(f"'111': {reason.value}")  # INFINITE_LOOP_DETECTED
 
-3. `devel-<TL_VERSION>` &mdash; The newest development build for the given TeX Live release.
-  When `<TL_VERSION>` is the current TeX Live version, this image will
-  usually be newer than the latest stable release of `<TL_VERSION>`.
-  However, when `<TL_VERSION>` is not the current TeX Live version, the latest
-  stable release usually will contain maintenance fixes and base image updates.
+# Watch it live
+tm.run('111', max_steps=50, trace=True, delay=0.1)
+```
 
-4. `devel-any-<DATE>` &mdash; A development version containing TeX Live from `<DATE>`.
-  This is the same as `devel-<TL_VERSION>-<DATE>`, but without `<TL_VERSION>` in case
-  someone wants to use the TeX Live from `<DATE>` without knowing `<TL_VERSION>`.
+### Trace Output Example
+```
+TURING MACHINE EXECUTION TRACE
+========================================
+Step    0
+State: q0          Head:   0
+Tape:  [1] 1 1
+δ(q0, 1) → (q1, X, R)
 
-## CI/CD Examples
+Step    1
+State: q1          Head:   1
+Tape:  X [1] 1
+δ(q1, 1) → (q2, X, R)
 
-### GitHub Actions
+Step    2
+State: q2          Head:   2
+Tape:  X X [1]
+δ(q2, 1) → (q0, X, L)
 
-Example using `latexmk`:
+... (spiraling continues)
 
+⏱ MAX STEPS (50) exceeded - possible infinite loop
+
+Loop Analysis:
+Most Visited States
+╭────────┬────────╮
+│ State  │ Visits │
+├────────┼────────┤
+│ q0     │   17   │
+│ q1     │   16   │
+│ q2     │   16   │
+╰────────┴────────╯
+
+💡 Tip: Try running with --max-steps 100 to explore further
+```
+
+## 🧪 Testing Your Machines
+
+### Running Tests
+```bash
+# Run all tests
+pytest
+
+# Run specific exercise tests
+pytest -k "dfa_even_zeros"
+
+# Run with verbose output
+pytest -v --tb=short --color=yes
+
+# Stop on first failure (recommended for exercises)
+pytest -x --ff
+```
+
+### Test Output
+```
+📝 Exercise 1: Create a DFA that accepts strings with an even number of 0s
+
+test_automata.py::TestDFAExercises::test_student_dfa_even_zeros 
+✅ All 8 tests passed!
+
+📝 Exercise 6: Create a TM that adds 1 to a binary number
+
+test_automata.py::TestTuringMachineExercises::test_student_tm_binary_adder
+❌ FAILED: Input '111'
+   Expected: 1000
+   Got: 0111
+   Hint: Handle carry propagation correctly
+```
+
+## 📊 Visualization
+
+### Generate State Diagrams
+```bash
+# Create visual representation of your automaton
+automata visualize machine.json
+
+# Outputs: machine.png with GraphViz rendering
+```
+
+### Interactive Web UI
+```bash
+# Start web interface
+automata-web
+
+# Open http://localhost:5000
+```
+
+## 🛠️ CLI Commands
+
+### Core Commands
+```bash
+# Run a machine on input
+automata run machine.json "input" --trace --max-steps 1000
+
+# Create a new machine interactively
+automata create dfa --output my_dfa.json
+
+# Test a machine against test cases
+automata test machine.json tests.json
+
+# Visualize a machine
+automata visualize machine.json
+
+# Show example machines
+automata examples
+
+# Interactive undecidability demo
+automata undecidability
+```
+
+### Options
+- `--trace`: Show step-by-step execution
+- `--max-steps N`: Limit execution to N steps
+- `--delay N`: Add N second delay between trace steps
+- `--loop-detect`: Enable/disable loop detection
+- `--output FILE`: Specify output file
+
+## 📖 Theory Connections
+
+### Regular Languages (DFA/NFA)
+- Closure properties
+- Pumping lemma applications
+- Minimization algorithms
+- Regular expressions
+
+### Context-Free Languages
+- Pushdown automata (coming soon)
+- CFG to PDA conversion
+- CYK algorithm
+
+### Decidability
+- Halting problem
+- Rice's theorem
+- Recursive vs recursively enumerable
+- Reductions
+
+### Complexity
+- P vs NP
+- NP-completeness
+- Space complexity
+- Time hierarchies
+
+## 🎓 Educational Usage
+
+### For Instructors
+1. **Assignments**: Use provided exercises as homework
+2. **Exams**: Generate random test cases
+3. **Demonstrations**: Show undecidability live in class
+4. **Projects**: Students implement advanced machines
+
+### For Students
+1. **Immediate Feedback**: Know instantly if your machine works
+2. **Visual Learning**: See exactly how machines process input
+3. **Exploration**: Experiment with limits of computation
+4. **Understanding**: Make abstract concepts concrete
+
+## 🔗 Integration with Course
+
+### Docker Support
+```bash
+# Build with course Docker image
+docker run -v $(pwd):/app scott-weeden/latex automata test
+```
+
+### Continuous Testing
 ```yaml
-name: Compile LaTeX
-on: [ push ]
+# GitHub Actions workflow
+name: Test Automata
+on: [push]
 jobs:
-  container:
+  test:
     runs-on: ubuntu-latest
-    container: scott-weeden/latex:2024.4
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Build using latexmk
-        run: latexmk -pdf -output-directory=out main.tex
-
-      - name: Upload document
-        uses: actions/upload-artifact@v4
-        with:
-          name: main-document
-          path: out/index.pdf
+      - uses: actions/checkout@v2
+      - run: pip install -e .
+      - run: pytest
 ```
 
-### GitLab CI/CD
+## 🐛 Debugging Tips
 
-Example using `latexmk`:
+### Common Issues
 
-```yaml
-build:
-  stage: build
-  image: scott-weeden/latex:2024.4
-  script:
-    - latexmk -pdf -output-directory=out main.tex
-  artifacts:
-    paths:
-      - out/index.pdf
+1. **DFA not complete**: Ensure transitions for all (state, symbol) pairs
+2. **NFA epsilon loops**: Check ε-closure computation
+3. **TM infinite loops**: Use `--max-steps` and `--trace`
+4. **Test failures**: Read hints in error messages
+
+### Debug Mode
+```python
+# Enable debug output
+import logging
+logging.basicConfig(level=logging.DEBUG)
+
+# Use trace in code
+dfa.accepts("input", trace=True)
 ```
+
+## 📚 Resources
+
+- **Documentation**: https://automata-theory.readthedocs.io
+- **Course Materials**: See `/course-content`
+- **Video Tutorials**: YouTube playlist (coming soon)
+- **Discord**: Join our study group
+
+## 🤝 Contributing
+
+We welcome contributions! See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
+
+### Areas for Contribution
+- More exercise templates
+- Visualization improvements
+- Performance optimizations
+- Documentation examples
+- Test case generators
+
+## 📄 License
+
+MIT License - See [LICENSE](LICENSE) for details.
+
+## 🙏 Acknowledgments
+
+- Inspired by Sipser's "Introduction to the Theory of Computation"
+- Built for CS Theory courses worldwide
+- Special thanks to students who tested early versions
+
+## 🚧 Roadmap
+
+### Coming Soon
+- [ ] Pushdown Automata (PDA)
+- [ ] Linear Bounded Automata
+- [ ] Quantum Automata
+- [ ] Interactive web playground
+- [ ] Video trace exports
+- [ ] Advanced complexity analysis
+- [ ] LLM integration for hints
+
+## 💡 Tips for Success
+
+1. **Start Small**: Build simple machines first
+2. **Test Often**: Use pytest after each change
+3. **Trace Execution**: Watch your machine run with `--trace`
+4. **Explore Limits**: Try inputs that might cause loops
+5. **Learn from Failures**: Red tests teach as much as green ones
+
+---
+
+**Remember**: Every loop that spirals endlessly is a reminder that some questions have no algorithmic answer. Welcome to the beautiful world of theoretical computer science! 🎭

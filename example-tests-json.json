@@ -1,0 +1,359 @@
+{
+  "description": "Test cases for automata exercises",
+  "version": "1.0.0",
+  "test_suites": {
+    "dfa_even_zeros": {
+      "description": "DFA that accepts strings with even number of zeros",
+      "machine_file": "student_solutions/dfa_even_zeros.json",
+      "test_cases": [
+        {
+          "input": "",
+          "accept": true,
+          "description": "Empty string has 0 zeros (even)"
+        },
+        {
+          "input": "1",
+          "accept": true,
+          "description": "Single 1, no zeros (even)"
+        },
+        {
+          "input": "0",
+          "accept": false,
+          "description": "Single 0 (odd)"
+        },
+        {
+          "input": "00",
+          "accept": true,
+          "description": "Two 0s (even)"
+        },
+        {
+          "input": "000",
+          "accept": false,
+          "description": "Three 0s (odd)"
+        },
+        {
+          "input": "0101",
+          "accept": true,
+          "description": "Two 0s among 1s (even)"
+        },
+        {
+          "input": "11111",
+          "accept": true,
+          "description": "All 1s, no zeros (even)"
+        },
+        {
+          "input": "001001",
+          "accept": false,
+          "description": "Three 0s total (odd)"
+        },
+        {
+          "input": "00110011",
+          "accept": true,
+          "description": "Six 0s (even)"
+        },
+        {
+          "input": "10101010",
+          "accept": true,
+          "description": "Four 0s (even)"
+        }
+      ]
+    },
+    "dfa_divisible_by_3": {
+      "description": "DFA that accepts binary numbers divisible by 3",
+      "machine_file": "student_solutions/dfa_divisible_3.json",
+      "test_cases": [
+        {
+          "input": "",
+          "accept": true,
+          "description": "Empty string represents 0"
+        },
+        {
+          "input": "0",
+          "accept": true,
+          "description": "0 is divisible by 3"
+        },
+        {
+          "input": "11",
+          "accept": true,
+          "description": "3 in binary"
+        },
+        {
+          "input": "110",
+          "accept": true,
+          "description": "6 in binary"
+        },
+        {
+          "input": "1001",
+          "accept": true,
+          "description": "9 in binary"
+        },
+        {
+          "input": "1100",
+          "accept": true,
+          "description": "12 in binary"
+        },
+        {
+          "input": "1",
+          "accept": false,
+          "description": "1 not divisible by 3"
+        },
+        {
+          "input": "10",
+          "accept": false,
+          "description": "2 not divisible by 3"
+        },
+        {
+          "input": "100",
+          "accept": false,
+          "description": "4 not divisible by 3"
+        },
+        {
+          "input": "101",
+          "accept": false,
+          "description": "5 not divisible by 3"
+        }
+      ]
+    },
+    "nfa_ends_01": {
+      "description": "NFA that accepts strings ending with '01'",
+      "machine_file": "student_solutions/nfa_ends_01.json",
+      "test_cases": [
+        {
+          "input": "01",
+          "accept": true,
+          "description": "Exactly '01'"
+        },
+        {
+          "input": "001",
+          "accept": true,
+          "description": "Ends with '01'"
+        },
+        {
+          "input": "101",
+          "accept": true,
+          "description": "Ends with '01'"
+        },
+        {
+          "input": "11101",
+          "accept": true,
+          "description": "Ends with '01'"
+        },
+        {
+          "input": "00101",
+          "accept": true,
+          "description": "Ends with '01'"
+        },
+        {
+          "input": "",
+          "accept": false,
+          "description": "Empty string"
+        },
+        {
+          "input": "0",
+          "accept": false,
+          "description": "Just '0'"
+        },
+        {
+          "input": "1",
+          "accept": false,
+          "description": "Just '1'"
+        },
+        {
+          "input": "10",
+          "accept": false,
+          "description": "Ends with '10'"
+        },
+        {
+          "input": "011",
+          "accept": false,
+          "description": "Ends with '11'"
+        }
+      ]
+    },
+    "tm_binary_increment": {
+      "description": "Turing Machine that increments binary numbers",
+      "machine_file": "student_solutions/tm_binary_increment.json",
+      "test_cases": [
+        {
+          "input": "",
+          "accept": true,
+          "description": "Empty becomes 1"
+        },
+        {
+          "input": "0",
+          "accept": true,
+          "description": "0 becomes 1"
+        },
+        {
+          "input": "1",
+          "accept": true,
+          "description": "1 becomes 10"
+        },
+        {
+          "input": "10",
+          "accept": true,
+          "description": "2 becomes 3"
+        },
+        {
+          "input": "11",
+          "accept": true,
+          "description": "3 becomes 4 (100)"
+        },
+        {
+          "input": "100",
+          "accept": true,
+          "description": "4 becomes 5 (101)"
+        },
+        {
+          "input": "111",
+          "accept": true,
+          "description": "7 becomes 8 (1000)"
+        },
+        {
+          "input": "1011",
+          "accept": true,
+          "description": "11 becomes 12 (1100)"
+        },
+        {
+          "input": "1111",
+          "accept": true,
+          "description": "15 becomes 16 (10000)"
+        },
+        {
+          "input": "10101",
+          "accept": true,
+          "description": "21 becomes 22 (10110)"
+        }
+      ]
+    },
+    "tm_palindrome": {
+      "description": "Turing Machine that checks palindromes",
+      "machine_file": "student_solutions/tm_palindrome.json",
+      "test_cases": [
+        {
+          "input": "",
+          "accept": true,
+          "description": "Empty is palindrome"
+        },
+        {
+          "input": "0",
+          "accept": true,
+          "description": "Single character"
+        },
+        {
+          "input": "1",
+          "accept": true,
+          "description": "Single character"
+        },
+        {
+          "input": "00",
+          "accept": true,
+          "description": "Same two characters"
+        },
+        {
+          "input": "11",
+          "accept": true,
+          "description": "Same two characters"
+        },
+        {
+          "input": "010",
+          "accept": true,
+          "description": "Odd palindrome"
+        },
+        {
+          "input": "101",
+          "accept": true,
+          "description": "Odd palindrome"
+        },
+        {
+          "input": "0110",
+          "accept": true,
+          "description": "Even palindrome"
+        },
+        {
+          "input": "1001",
+          "accept": true,
+          "description": "Even palindrome"
+        },
+        {
+          "input": "01",
+          "accept": false,
+          "description": "Not palindrome"
+        },
+        {
+          "input": "10",
+          "accept": false,
+          "description": "Not palindrome"
+        },
+        {
+          "input": "001",
+          "accept": false,
+          "description": "Not palindrome"
+        },
+        {
+          "input": "110",
+          "accept": false,
+          "description": "Not palindrome"
+        },
+        {
+          "input": "0101",
+          "accept": false,
+          "description": "Not palindrome"
+        }
+      ]
+    },
+    "loop_detection_demo": {
+      "description": "Demonstrates loop detection in Turing Machines",
+      "machine_file": "examples/loop.tm.json",
+      "test_cases": [
+        {
+          "input": "",
+          "accept": true,
+          "description": "Empty input halts"
+        },
+        {
+          "input": "0",
+          "accept": true,
+          "description": "Single 0 halts"
+        },
+        {
+          "input": "1",
+          "accept": false,
+          "description": "Single 1 may loop"
+        },
+        {
+          "input": "111",
+          "accept": false,
+          "description": "Three 1s cause infinite loop"
+        }
+      ],
+      "special_tests": {
+        "max_steps_test": {
+          "input": "111",
+          "max_steps": [10, 50, 100, 500],
+          "description": "Test with increasing step limits to observe looping"
+        },
+        "loop_detection_test": {
+          "input": "111",
+          "enable_loop_detection": true,
+          "expected_halt_reason": "INFINITE_LOOP",
+          "description": "Should detect infinite loop"
+        }
+      }
+    }
+  },
+  "batch_tests": {
+    "all_dfa": ["dfa_even_zeros", "dfa_divisible_by_3"],
+    "all_nfa": ["nfa_ends_01"],
+    "all_tm": ["tm_binary_increment", "tm_palindrome"],
+    "all": ["dfa_even_zeros", "dfa_divisible_by_3", "nfa_ends_01", "tm_binary_increment", "tm_palindrome"]
+  },
+  "grading": {
+    "points_per_test": 1,
+    "partial_credit": true,
+    "time_limit_seconds": 5,
+    "memory_limit_mb": 256,
+    "allow_retries": true,
+    "max_retries": 3
+  }
+}
