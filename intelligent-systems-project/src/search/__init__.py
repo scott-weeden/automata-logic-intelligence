@@ -1,32 +1,54 @@
+"""Search package exposing foundational problem definitions, utilities, heuristics,
+   and search agents.
+
+The first two implementation phases focus on reusable components that higher-level
+algorithms rely on:
+
+* :mod:`src.search.problem` supplies abstract base classes describing the search
+  interface and a concrete grid example used in tests and demos.
+* :mod:`src.search.utils` contains the :class:`Node` helper and a robust
+  :class:`PriorityQueue` abstraction used by informed searches.
+* :mod:`src.search.heuristics` implements standard distance heuristics together
+  with a configurable :class:`GridHeuristic` wrapper.
+
+Later phases add algorithmic agents which we re-export here for convenience once
+available.
 """
-Search Module
 
-Implements uninformed and informed search algorithms for AI problem solving.
-Based on CS 5368 Weeks 1-4 covering search problem formulation and strategies.
-"""
-
-from .algorithms import (
-    BreadthFirstSearch, DepthFirstSearch, UniformCostSearch,
-    AStarSearch, GreedyBestFirstSearch, IterativeDeepeningSearch
-)
-
-from .problem import SearchProblem, GridSearchProblem
-
+from .problem import GridSearchProblem, SearchProblem
+from .utils import Node, PriorityQueue
 from .heuristics import (
     manhattan_distance,
     euclidean_distance,
     chebyshev_distance,
     GridHeuristic,
-    null_heuristic
+    null_heuristic,
+)
+from .algorithms import (
+    SearchAgent,
+    BreadthFirstSearch,
+    DepthFirstSearch,
+    UniformCostSearch,
+    AStarSearch,
+    GreedyBestFirstSearch,
+    IterativeDeepeningSearch,
 )
 
-from .utils import Node, PriorityQueue
-
 __all__ = [
-    'BreadthFirstSearch', 'DepthFirstSearch', 'UniformCostSearch',
-    'AStarSearch', 'GreedyBestFirstSearch', 'IterativeDeepeningSearch',
-    'SearchProblem', 'GridSearchProblem',
-    'manhattan_distance', 'euclidean_distance', 'chebyshev_distance',
-    'GridHeuristic', 'null_heuristic',
-    'Node', 'PriorityQueue'
+    "SearchProblem",
+    "GridSearchProblem",
+    "Node",
+    "PriorityQueue",
+    "manhattan_distance",
+    "euclidean_distance",
+    "chebyshev_distance",
+    "GridHeuristic",
+    "null_heuristic",
+    "SearchAgent",
+    "BreadthFirstSearch",
+    "DepthFirstSearch",
+    "UniformCostSearch",
+    "AStarSearch",
+    "GreedyBestFirstSearch",
+    "IterativeDeepeningSearch",
 ]
