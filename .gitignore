@@ -19,3 +19,4 @@ venv/**/*
 __pycache__
 .amazonq/**/* 
 .amazonq/cli-todo-lists/*
+.amazonq/cli-todo-lists/1758688012771.json
